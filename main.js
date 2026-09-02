@@ -14,7 +14,7 @@ export default {
       return stub.fetch(request);
     }
 
-    return new Response(JSON.stringify({ status: "Echo Server on Cloudflare Workers", engine: "Durable Objects" }), {
+    return new Response(JSON.stringify({ status: "Echo Server on Cloudflare Workers", engine: "Durable Objects + SQLite" }), {
       headers: { "Content-Type": "application/json" }
     });
   }
@@ -24,6 +24,17 @@ export class EchoChatRoom {
   constructor(state, env) {
     this.state = state;
     this.env = env;
+    
+    // Inicializa a tabela SQLite nativa da Durable Object
+    this.state.blockConcurrencyWhile(async () => {
+      this.state.storage.sql.exec(`
+        CREATE TABLE IF NOT EXISTS users (
+          username TEXT PRIMARY KEY,
+          password TEXT NOT NULL,
+          created_at TEXT
+        );
+      `);
+    });
   }
 
   async fetch(request) {
@@ -42,6 +53,40 @@ export class EchoChatRoom {
     try {
       const data = JSON.parse(messageString);
 
+      // Ação de Criar Conta
+      if (data.type === 'signup') {
+        const { username, password } = data;
+        try {
+          this.state.storage.sql.exec(
+            `INSERT INTO users (username, password, created_at) VALUES (?, ?, ?)`,
+            username, password, new Date().toISOString()
+          );
+          ws.send(JSON.stringify({ type: 'auth_response', success: true, message: 'Conta criada com sucesso!' }));
+        } catch (err) {
+          ws.send(JSON.stringify({ type: 'auth_response', success: false, message: 'Usuário já existe!' }));
+        }
+        return;
+      }
+
+      // Ação de Login
+      if (data.type === 'login') {
+        const { username, password } = data;
+        const cursor = this.state.storage.sql.exec(
+          `SELECT * FROM users WHERE username = ? AND password = ?`,
+          username, password
+        );
+        const users = cursor.toArray();
+
+        if (users.length > 0) {
+          ws.serializeAttachment({ userId: username });
+          ws.send(JSON.stringify({ type: 'auth_response', success: true, message: 'Login realizado com sucesso!', username }));
+        } else {
+          ws.send(JSON.stringify({ type: 'auth_response', success: false, message: 'Usuário ou senha inválidos!' }));
+        }
+        return;
+      }
+
+      // Registro legado via ID direto (opcional)
       if (data.type === 'register') {
         const currentUserId = data.userId;
         ws.serializeAttachment({ userId: currentUserId });
