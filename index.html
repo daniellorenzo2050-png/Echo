@@ -1,1 +1,66 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Echo - Web</title>
+    <link rel="stylesheet" href="styles/style.css">
+</head>
+<body>
+    <div class="echo-container">
+        <!-- Sidebar / Lista de Contatos -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>Echo</h2>
+                <div class="user-info">
+                    <span id="current-user-display">Não autenticado</span>
+                    <button id="btn-open-auth" class="btn-small">Entrar / Criar Conta</button>
+                </div>
+            </div>
+            <div class="search-box">
+                <input type="text" id="search-input" placeholder="Pesquisar ou começar uma nova conversa">
+            </div>
+            <div class="chat-list" id="chat-list">
+                <!-- Lista de conversas -->
+            </div>
+        </aside>
 
+        <!-- Área Principal do Chat -->
+        <main class="chat-area">
+            <div class="chat-header" id="chat-header">
+                <div class="contact-details">
+                    <h3 id="active-chat-name">Selecione uma conversa</h3>
+                    <span id="active-chat-status">offline</span>
+                </div>
+            </div>
+
+            <div class="messages-container" id="messages-container">
+                <!-- Mensagens, vídeos, mídias -->
+            </div>
+
+            <div class="chat-input-bar">
+                <input type="file" id="file-input" style="display: none;" accept="image/*,video/*,application/*">
+                <button id="btn-attach" title="Enviar Arquivo/Vídeo/Figurinha">📎</button>
+                <input type="text" id="message-input" placeholder="Digite uma mensagem">
+                <button id="btn-send">➤</button>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal de Autenticação -->
+    <div id="auth-modal" class="auth-modal" style="display: none;">
+        <div class="auth-content">
+            <h3>Acessar Echo</h3>
+            <input type="text" id="auth-user" placeholder="Usuário">
+            <input type="password" id="auth-pass" placeholder="Senha">
+            <div class="auth-buttons">
+                <button id="btn-login-action" class="btn-small">Entrar</button>
+                <button id="btn-register-action" class="btn-small">Criar Conta</button>
+            </div>
+            <button id="btn-close-auth" class="btn-close">X</button>
+        </div>
+    </div>
+
+    <script src="scripts/script.js"></script>
+</body>
+</html>
