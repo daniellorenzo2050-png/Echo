@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Echo - Web</title>
+    <link rel="stylesheet" href="styles/style.css">
+</head>
+<body>
+    <div class="echo-container">
+        <!-- Sidebar / Lista de Contatos -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>Echo</h2>
+                <div class="user-info">
+                    <span id="current-user-display">Conectado como...</span>
+                    <button id="btn-login" class="btn-small">Entrar</button>
+                </div>
+            </div>
+            <div class="search-box">
+                <input type="text" id="search-input" placeholder="Pesquisar ou começar uma nova conversa">
+            </div>
+            <div class="chat-list" id="chat-list">
+                <!-- Lista de conversas injetada via JS -->
+            </div>
+        </aside>
+
+        <!-- Área Principal do Chat -->
+        <main class="chat-area">
+            <div class="chat-header" id="chat-header">
+                <div class="contact-details">
+                    <h3 id="active-chat-name">Selecione uma conversa</h3>
+                    <span id="active-chat-status">offline</span>
+                </div>
+            </div>
+
+            <div class="messages-container" id="messages-container">
+                <!-- As mensagens, vídeos, figurinhas e arquivos aparecem aqui -->
+            </div>
+
+            <!-- Painel de envio de mídias (oculto por padrão) -->
+            <div class="media-preview-panel" id="media-preview-panel" style="display: none;">
+                <span id="media-preview-name"></span>
+                <button id="btn-cancel-media">X</button>
+            </div>
+
+            <div class="chat-input-bar">
+                <input type="file" id="file-input" style="display: none;" accept="image/*,video/*,application/*">
+                <button id="btn-attach" title="Enviar Arquivo/Vídeo/Figurinha">📎</button>
+                <input type="text" id="message-input" placeholder="Digite uma mensagem">
+                <button id="btn-send">➤</button>
+            </div>
+        </main>
+    </div>
+
+    <script src="scripts/script.js"></script>
+</body>
+</html>
