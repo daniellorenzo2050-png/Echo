@@ -2,6 +2,29 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
+    // Rota HTTP para Cadastro (Sign Up)
+    if (url.pathname === "/api/register" && request.method === "POST") {
+      const { username, password } = await request.json();
+      const id = env.ECHO_CHAT.idFromName("global-chat-room");
+      const stub = env.ECHO_CHAT.get(id);
+      return stub.fetch(new Request("https://internal/api/register", {
+        method: "POST",
+        body: JSON.stringify({ username, password })
+      }));
+    }
+
+    // Rota HTTP para Login
+    if (url.pathname === "/api/login" && request.method === "POST") {
+      const { username, password } = await request.json();
+      const id = env.ECHO_CHAT.idFromName("global-chat-room");
+      const stub = env.ECHO_CHAT.get(id);
+      return stub.fetch(new Request("https://internal/api/login", {
+        method: "POST",
+        body: JSON.stringify({ username, password })
+      }));
+    }
+
+    // Rota do WebSocket
     if (url.pathname === "/websocket") {
       const upgradeHeader = request.headers.get("Upgrade");
       if (upgradeHeader !== "websocket") {
@@ -14,7 +37,7 @@ export default {
       return stub.fetch(request);
     }
 
-    return new Response(JSON.stringify({ status: "Echo Server on Cloudflare Workers", engine: "Durable Objects + SQLite" }), {
+    return new Response(JSON.stringify({ status: "Echo Server active", engine: "SQLite + Durable Objects" }), {
       headers: { "Content-Type": "application/json" }
     });
   }
@@ -26,21 +49,59 @@ export class EchoChatRoom {
     this.env = env;
     
     // Inicializa a tabela SQLite nativa da Durable Object
-    this.state.blockConcurrencyWhile(async () => {
-      this.state.storage.sql.exec(`
-        CREATE TABLE IF NOT EXISTS users (
-          username TEXT PRIMARY KEY,
-          password TEXT NOT NULL,
-          created_at TEXT
-        );
-      `);
-    });
+    this.state.storage.sql.exec(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE,
+        password TEXT
+      );
+    `);
   }
 
   async fetch(request) {
+    const url = new URL(request.url);
+
+    if (url.pathname === "/api/register") {
+      const { username, password } = await request.json();
+      try {
+        this.state.storage.sql.exec(
+          "INSERT INTO users (username, password) VALUES (?, ?)",
+          username, password
+        );
+        return new Response(JSON.stringify({ success: true, message: "Conta criada com sucesso!" }), {
+          headers: { "Content-Type": "application/json" }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, message: "Usuário já existe." }), {
+          status: 400,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+    }
+
+    if (url.pathname === "/api/login") {
+      const { username, password } = await request.json();
+      const cursor = this.state.storage.sql.exec(
+        "SELECT * FROM users WHERE username = ? AND password = ?",
+        username, password
+      );
+      const user = cursor.toArray()[0];
+
+      if (user) {
+        return new Response(JSON.stringify({ success: true, userId: user.username }), {
+          headers: { "Content-Type": "application/json" }
+        });
+      } else {
+        return new Response(JSON.stringify({ success: false, message: "Usuário ou senha incorretos." }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+    }
+
+    // Gerenciamento padrão de WebSocket
     const pair = new WebSocketPair();
     const [client, server] = [pair[0], pair[1]];
-
     this.state.acceptWebSocket(server);
 
     return new Response(null, {
@@ -53,50 +114,14 @@ export class EchoChatRoom {
     try {
       const data = JSON.parse(messageString);
 
-      // Ação de Criar Conta
-      if (data.type === 'signup') {
-        const { username, password } = data;
-        try {
-          this.state.storage.sql.exec(
-            `INSERT INTO users (username, password, created_at) VALUES (?, ?, ?)`,
-            username, password, new Date().toISOString()
-          );
-          ws.send(JSON.stringify({ type: 'auth_response', success: true, message: 'Conta criada com sucesso!' }));
-        } catch (err) {
-          ws.send(JSON.stringify({ type: 'auth_response', success: false, message: 'Usuário já existe!' }));
-        }
-        return;
-      }
-
-      // Ação de Login
-      if (data.type === 'login') {
-        const { username, password } = data;
-        const cursor = this.state.storage.sql.exec(
-          `SELECT * FROM users WHERE username = ? AND password = ?`,
-          username, password
-        );
-        const users = cursor.toArray();
-
-        if (users.length > 0) {
-          ws.serializeAttachment({ userId: username });
-          ws.send(JSON.stringify({ type: 'auth_response', success: true, message: 'Login realizado com sucesso!', username }));
-        } else {
-          ws.send(JSON.stringify({ type: 'auth_response', success: false, message: 'Usuário ou senha inválidos!' }));
-        }
-        return;
-      }
-
-      // Registro legado via ID direto (opcional)
       if (data.type === 'register') {
-        const currentUserId = data.userId;
-        ws.serializeAttachment({ userId: currentUserId });
+        ws.serializeAttachment({ userId: data.userId });
         ws.send(JSON.stringify({ type: 'registered', status: 'success' }));
         return;
       }
 
       if (data.type === 'send_message') {
         const { senderId, receiverId, text, timestamp } = data;
-        
         const payload = JSON.stringify({
           type: 'receive_message',
           senderId,
@@ -114,7 +139,7 @@ export class EchoChatRoom {
         }
       }
     } catch (error) {
-      console.error('Erro ao processar mensagem no Worker:', error);
+      console.error('Erro no WebSocket:', error);
     }
   }
 
