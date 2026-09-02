@@ -1,4 +1,4 @@
-name = "echo-server"
+name = "echo"
 main = "main.js"
 compatibility_date = "2026-09-02"
 
@@ -12,4 +12,4 @@ bindings = [
 
 [[migrations]]
 tag = "v1"
-new_classes = ["EchoChatRoom"]
+new_sqlite_classes = ["EchoChatRoom"]
