@@ -1,0 +1,15 @@
+name = "echo-server"
+main = "main.js"
+compatibility_date = "2026-09-02"
+
+[vars]
+ENVIRONMENT = "production"
+
+[durable_objects]
+bindings = [
+  { name = "ECHO_CHAT", class_name = "EchoChatRoom" }
+]
+
+[[migrations]]
+tag = "v1"
+new_classes = ["EchoChatRoom"]
