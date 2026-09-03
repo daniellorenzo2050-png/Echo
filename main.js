@@ -171,7 +171,7 @@ export default {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Echo - WhatsApp Web</title>
+    <title>Echo - Web</title>
     <style>
         :root {
             --wa-bg-header: #00a884;
@@ -290,7 +290,7 @@ export default {
 <body>
     <div id="auth-card" class="auth-wrapper">
         <div class="auth-container">
-            <h2 id="form-title">Echo WhatsApp</h2>
+            <h2 id="form-title">Echo</h2>
             <input type="text" id="username" placeholder="Nome de usuário" required />
             <input type="password" id="password" placeholder="Senha" required />
             <button id="auth-btn">Entrar</button>
