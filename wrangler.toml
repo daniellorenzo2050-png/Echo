@@ -1,15 +1,12 @@
 name = "echo"
 main = "main.js"
-compatibility_date = "2026-09-02"
-
-[vars]
-ENVIRONMENT = "production"
+compatibility_date = "2026-09-03"
 
 [durable_objects]
 bindings = [
-  { name = "ECHO_CHAT", class_name = "EchoChatRoom" }
+  { name = "CHAT_ROOM", class_name = "ChatRoom" }
 ]
 
 [[migrations]]
 tag = "v1"
-new_sqlite_classes = ["EchoChatRoom"]
+new_classes = ["ChatRoom"]
