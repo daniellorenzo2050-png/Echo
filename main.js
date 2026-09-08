@@ -3,6 +3,7 @@ export class ChatRoom {
     this.state = state;
     this.sessions = new Set();
     this.sql = state.storage.sql;
+    this.env = env;
     this.initDatabase();
   }
 
@@ -16,8 +17,10 @@ export class ChatRoom {
       CREATE TABLE IF NOT EXISTS messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         sender TEXT NOT NULL,
+        recipient TEXT,
         type TEXT NOT NULL,
         content TEXT NOT NULL,
+        file_name TEXT,
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     `);
@@ -29,7 +32,7 @@ export class ChatRoom {
     const method = request.method;
 
     if (method === "GET" && path === "/api/") {
-      return new Response(JSON.stringify({ status: "Echo WhatsApp UI Edition Online" }), {
+      return new Response(JSON.stringify({ status: "Echo Secure Edition com EchoAI (GLM-2) Online" }), {
         headers: getSecurityHeaders({ "Content-Type": "application/json;charset=UTF-8" })
       });
     }
@@ -101,23 +104,90 @@ export class ChatRoom {
     websocket.accept();
     this.sessions.add(websocket);
 
-    const history = this.sql.exec("SELECT id, sender, type, content, timestamp FROM messages ORDER BY id ASC").toArray();
-    websocket.send(JSON.stringify({ type: "history", messages: history }));
-
     websocket.addEventListener("message", async (msg) => {
       try {
         const data = JSON.parse(msg.data);
-        if (data.sender && data.content && data.msgType) {
-          this.sql.exec("INSERT INTO messages (sender, type, content) VALUES (?, ?, ?)", data.sender, data.msgType, data.content);
+
+        if (data.type === "auth") {
+          websocket.username = data.username;
+          const history = this.sql.exec(
+            "SELECT id, sender, recipient, type, content, file_name, timestamp FROM messages WHERE sender = ? OR recipient = ? ORDER BY id ASC",
+            data.username, data.username
+          ).toArray();
+          websocket.send(JSON.stringify({ type: "history", messages: history }));
+          return;
+        }
+
+        if (data.type === "message" || data.type === "file" || data.type === "audio") {
+          this.sql.exec(
+            "INSERT INTO messages (sender, recipient, type, content, file_name) VALUES (?, ?, ?, ?, ?)",
+            data.sender, data.recipient, data.type, data.content, data.file_name || ""
+          );
 
           for (const session of this.sessions) {
-            session.send(JSON.stringify({
-              type: "message",
-              sender: data.sender,
-              msgType: data.msgType,
-              content: data.content,
-              timestamp: new Date().toISOString()
-            }));
+            if (session.username === data.recipient || session.username === data.sender) {
+              session.send(JSON.stringify({
+                type: "message",
+                sender: data.sender,
+                recipient: data.recipient,
+                msgType: data.type,
+                content: data.content,
+                file_name: data.file_name || "",
+                timestamp: new Date().toISOString()
+              }));
+            }
+          }
+
+          // Resposta automática do EchoAI utilizando modelo GLM-2 via Cloudflare AI Binding
+          if (data.recipient === "EchoAI" && data.msgType === "text") {
+            let aiReplyText = "Olá! Sou o EchoAI impulsionado por GLM-2. Como posso ajudar você no Echo?";
+            try {
+              if (this.env && this.env.AI) {
+                const aiResponse = await this.env.AI.run("@cf/zai-org/glm-2-7b", {
+                  messages: [
+                    { role: "system", content: "Você é o EchoAI, um assistente inteligente integrado ao aplicativo Echo. Ajude o usuário em suas tarefas de forma concisa e direta." },
+                    { role: "user", content: data.content }
+                  ]
+                });
+                if (aiResponse && aiResponse.response) {
+                  aiReplyText = aiResponse.response;
+                }
+              }
+            } catch (aiErr) {
+              aiReplyText = "EchoAI conectado, mas ocorreu um pequeno atraso ao processar via GLM-2. Sua mensagem foi: " + data.content;
+            }
+
+            this.sql.exec(
+              "INSERT INTO messages (sender, recipient, type, content, file_name) VALUES (?, ?, ?, ?, ?)",
+              "EchoAI", data.sender, "text", aiReplyText, ""
+            );
+
+            for (const session of this.sessions) {
+              if (session.username === data.sender) {
+                session.send(JSON.stringify({
+                  type: "message",
+                  sender: "EchoAI",
+                  recipient: data.sender,
+                  msgType: "text",
+                  content: aiReplyText,
+                  file_name: "",
+                  timestamp: new Date().toISOString()
+                }));
+              }
+            }
+          }
+        }
+
+        if (data.type === "call-signal") {
+          for (const session of this.sessions) {
+            if (session.username === data.recipient) {
+              session.send(JSON.stringify({
+                type: "call-signal",
+                sender: data.sender,
+                signal: data.signal,
+                callType: data.callType
+              }));
+            }
           }
         }
       } catch (err) {
@@ -148,7 +218,7 @@ function getSecurityHeaders(additionalHeaders = {}) {
     "Referrer-Policy": "no-referrer",
     "X-Download-Options": "noopen",
     "X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet",
-    "Permissions-Policy": "accelerometer=(), camera=(), geolocation=(), microphone=(self), payment=(), usb=()",
+    "Permissions-Policy": "accelerometer=(), camera=(self), geolocation=(), microphone=(self), payment=(), usb=()",
     "Cache-Control": "no-store, no-cache, must-revalidate",
     "Server": "Echo-Secure-Edge"
   };
@@ -171,7 +241,7 @@ export default {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Echo - Web</title>
+    <title>Echo - Messenger</title>
     <style>
         :root {
             --wa-bg-header: #00a884;
@@ -190,26 +260,17 @@ export default {
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: Segoe UI, Helvetica Neue, Helvetica, Arial, sans-serif; }
         body { background-color: #0c1317; height: 100vh; width: 100vw; display: flex; justify-content: center; align-items: center; overflow: hidden; color: var(--wa-text-primary); }
 
-        /* Fita superior verde estilo WhatsApp Web em telas grandes */
         body::before {
             content: "";
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 127px;
+            top: 0; left: 0; width: 100%; height: 127px;
             background-color: var(--wa-bg-header);
             z-index: 0;
         }
 
         .auth-wrapper {
-            position: relative;
-            z-index: 1;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            position: relative; z-index: 1; width: 100%; height: 100%;
+            display: flex; justify-content: center; align-items: center;
             background: rgba(11, 20, 26, 0.94);
         }
         .auth-container { width: 100%; max-width: 400px; background: var(--wa-bg-panel); padding: 36px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); display: flex; flex-direction: column; gap: 18px; border: 1px solid var(--wa-border); margin: 20px; }
@@ -221,27 +282,12 @@ export default {
         .switch-auth { text-align: center; font-size: 0.88rem; color: var(--wa-text-secondary); cursor: pointer; }
         .switch-auth span { color: var(--wa-accent); text-decoration: underline; }
 
-        /* App Adaptativo preenchendo a tela inteira */
         .app-container {
-            position: relative;
-            z-index: 1;
-            width: 100vw;
-            height: 100vh;
-            max-width: 1600px;
-            max-height: calc(100vh - 38px);
-            background: var(--wa-bg-sidebar);
-            display: flex;
-            overflow: hidden;
-            box-shadow: 0 6px 18px rgba(0,0,0,0.6);
-            border: 1px solid var(--wa-border);
+            position: relative; z-index: 1; width: 100vw; height: 100vh; max-width: 1600px; max-height: calc(100vh - 38px);
+            background: var(--wa-bg-sidebar); display: flex; overflow: hidden; box-shadow: 0 6px 18px rgba(0,0,0,0.6); border: 1px solid var(--wa-border);
         }
 
-        @media (min-width: 1400px) {
-            .app-container {
-                border-radius: 6px;
-                height: 95vh;
-            }
-        }
+        @media (min-width: 1400px) { .app-container { border-radius: 6px; height: 95vh; } }
 
         .sidebar { width: 30%; min-width: 320px; max-width: 420px; background: var(--wa-bg-sidebar); border-right: 1px solid var(--wa-border); display: flex; flex-direction: column; height: 100%; }
         .sidebar-header { padding: 10px 16px; background: var(--wa-bg-panel); display: flex; justify-content: space-between; align-items: center; height: 60px; border-bottom: 1px solid var(--wa-border); }
@@ -258,12 +304,7 @@ export default {
         .chat-header { padding: 10px 16px; background: var(--wa-bg-panel); display: flex; align-items: center; gap: 14px; height: 60px; border-bottom: 1px solid var(--wa-border); }
         
         .messages-container {
-            flex: 1;
-            padding: 20px 7%;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
+            flex: 1; padding: 20px 7%; overflow-y: auto; display: flex; flex-direction: column; gap: 4px;
             background-color: #0b141a;
             background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%231f2c34' fill-opacity='0.15' fill-rule='evenodd'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/svg%3E");
         }
@@ -283,6 +324,11 @@ export default {
         .modal-content { background: var(--wa-bg-panel); padding: 26px; border-radius: 8px; width: 360px; display: flex; flex-direction: column; gap: 16px; border: 1px solid var(--wa-border); box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
         .modal-content h3 { color: var(--wa-accent); font-size: 1.2rem; }
         
+        .call-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0b141a; z-index: 200; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 40px; }
+        .video-grid { display: flex; gap: 20px; width: 100%; height: 75%; justify-content: center; align-items: center; }
+        .video-box { width: 45%; height: 100%; background: #202c33; border-radius: 12px; overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center; }
+        .video-box video { width: 100%; height: 100%; object-fit: cover; }
+
         .hidden { display: none !important; }
         .error-msg { color: #f87171; font-size: 0.82rem; text-align: center; }
     </style>
@@ -290,7 +336,7 @@ export default {
 <body>
     <div id="auth-card" class="auth-wrapper">
         <div class="auth-container">
-            <h2 id="form-title">Echo</h2>
+            <h2 id="form-title">Echo Messenger</h2>
             <input type="text" id="username" placeholder="Nome de usuário" required />
             <input type="password" id="password" placeholder="Senha" required />
             <button id="auth-btn">Entrar</button>
@@ -302,47 +348,36 @@ export default {
     <div id="app-container" class="app-container hidden">
         <aside class="sidebar">
             <div class="sidebar-header">
-                <div class="user-profile" id="open-profile-modal" title="Configurar Perfil e Foto">
+                <div class="user-profile" id="open-profile-modal" title="Configurar Perfil">
                     <div class="avatar" id="my-avatar-container">
                         <span id="avatar-initial">U</span>
                     </div>
                 </div>
                 <div style="display: flex; gap: 2px;">
-                    <button class="icon-btn" id="open-contact-modal" title="Adicionar Contato">💬</button>
-                    <button class="icon-btn" title="Menu">⋮</button>
+                    <button class="icon-btn" id="open-contact-modal" title="Novo Contato">💬</button>
                 </div>
             </div>
-            <div id="contact-list" class="contact-list">
-                <div class="contact-item active">
-                    <div class="avatar" style="background: var(--wa-accent);">🌐</div>
-                    <div style="flex:1; overflow:hidden;">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <b style="font-size: 0.98rem;">Geral</b>
-                            <span style="font-size:0.7rem; color:var(--wa-text-secondary)">Online</span>
-                        </div>
-                        <p style="font-size: 0.8rem; color: var(--wa-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Chat público global seguro</p>
-                    </div>
-                </div>
-            </div>
+            <div id="contact-list" class="contact-list"></div>
         </aside>
         
-        <main class="chat-area">
+        <main class="chat-area" id="main-chat-pane">
             <div class="chat-header">
-                <div class="avatar" style="background: var(--wa-accent);">🌐</div>
+                <div class="avatar" id="active-chat-avatar" style="background: var(--wa-accent);">?</div>
                 <div style="flex:1;">
-                    <b style="font-size: 0.98rem; display:block;">Conversa Global</b>
-                    <p style="font-size: 0.73rem; color: var(--wa-text-secondary);">toque aqui para info do grupo</p>
+                    <b id="active-chat-name" style="font-size: 0.98rem; display:block;">Selecione um contato</b>
+                    <p style="font-size: 0.73rem; color: var(--wa-text-secondary);">Echo Secure Protocol</p>
                 </div>
                 <div style="display: flex; gap: 10px;">
-                    <button class="icon-btn" title="Pesquisar">🔍</button>
-                    <button class="icon-btn" title="Anexo">📎</button>
+                    <button class="icon-btn" id="audio-call-btn" title="Ligação de Áudio">📞</button>
+                    <button class="icon-btn" id="video-call-btn" title="Ligação de Vídeo">📹</button>
                 </div>
             </div>
             
             <div id="messages" class="messages-container"></div>
             
-            <form id="chat-form" class="chat-input-area">
-                <button type="button" class="icon-btn" title="Emoji">😊</button>
+            <form id="chat-form" class="chat-input-area hidden">
+                <input type="file" id="file-attachment-input" style="display: none;" />
+                <button type="button" class="icon-btn" id="attach-file-btn" title="Enviar Arquivo">📎</button>
                 <input type="text" id="message-input" placeholder="Digite uma mensagem" autocomplete="off" />
                 <button type="button" class="icon-btn" id="record-audio-btn" title="Gravar Áudio">🎤</button>
                 <button type="submit" class="icon-btn" style="color: var(--wa-accent);" title="Enviar">➤</button>
@@ -350,19 +385,26 @@ export default {
         </main>
     </div>
 
-    <!-- Modal Adicionar Contato -->
+    <div id="call-screen" class="call-screen hidden">
+        <h2 id="call-status-text" style="color: #fff;">Chamada em andamento...</h2>
+        <div class="video-grid">
+            <div class="video-box"><video id="local-video" autoplay muted playsinline></video></div>
+            <div class="video-box"><video id="remote-video" autoplay playsinline></video></div>
+        </div>
+        <button id="end-call-btn" style="padding: 12px 24px; background: #ef4444; color: #fff; border: none; border-radius: 30px; font-weight: bold; cursor: pointer;">Encerrar Chamada</button>
+    </div>
+
     <div id="contact-modal" class="modal hidden">
         <div class="modal-content">
-            <h3>Nova Conversa</h3>
-            <input type="text" id="new-contact-name" placeholder="Nome de usuário" />
+            <h3>Novo Contato</h3>
+            <input type="text" id="new-contact-name" placeholder="Nome de usuário exato" />
             <div style="display: flex; gap: 10px; margin-top: 5px;">
-                <button id="add-contact-confirm" style="flex: 1; padding: 10px; background: var(--wa-accent); border: none; border-radius: 4px; color: #fff; font-weight: 600; cursor: pointer;">Iniciar</button>
+                <button id="add-contact-confirm" style="flex: 1; padding: 10px; background: var(--wa-accent); border: none; border-radius: 4px; color: #fff; font-weight: 600; cursor: pointer;">Adicionar</button>
                 <button id="close-contact-modal" style="flex: 1; padding: 10px; background: var(--wa-border); border: none; border-radius: 4px; color: #fff; cursor: pointer;">Cancelar</button>
             </div>
         </div>
     </div>
 
-    <!-- Modal Perfil / Upload Foto -->
     <div id="profile-modal" class="modal hidden">
         <div class="modal-content">
             <h3>Perfil do Usuário</h3>
@@ -382,23 +424,20 @@ export default {
         let db;
         let currentUser = "";
         let currentProfilePic = "";
+        let activeRecipient = "";
         let socket;
-        let mediaRecorder;
-        let audioChunks = [];
+        let contacts = ["EchoAI"];
+        let messagesStore = {};
+        let pc;
+        let localStream;
+        const rtcConfig = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
 
-        function generateUUIDv7() {
-            const timeMs = Date.now();
-            const timeHex = timeMs.toString(16).padStart(12, '0');
-            const randA = Math.floor(Math.random() * 0xfff).toString(16).padStart(3, '0');
-            const randB = Math.floor(Math.random() * 0x3fffffffffffffff).toString(16).padStart(16, '0');
-            return \`\${timeHex.substring(0,8)}-\${timeHex.substring(8,12)}-7\${randA}-\${randB.substring(0,4)}-\${randB.substring(4,16)}\`;
-        }
-
-        const requestDB = indexedDB.open("EchoWhatsAppDB", 1);
+        const requestDB = indexedDB.open("EchoMessengerDB", 3);
         requestDB.onupgradeneeded = (e) => {
             db = e.target.result;
             if (!db.objectStoreNames.contains("messages")) db.createObjectStore("messages", { keyPath: "id", autoIncrement: true });
             if (!db.objectStoreNames.contains("auth")) db.createObjectStore("auth", { keyPath: "username" });
+            if (!db.objectStoreNames.contains("contacts")) db.createObjectStore("contacts", { keyPath: "username" });
         };
         requestDB.onsuccess = (e) => {
             db = e.target.result;
@@ -408,8 +447,7 @@ export default {
         async function hashPassword(password) {
             const msgBuffer = new TextEncoder().encode(password);
             const hashBuffer = await crypto.subtle.digest('SHA-512', msgBuffer);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
         }
 
         function checkAutoLogin() {
@@ -436,7 +474,7 @@ export default {
 
         switchBtn.addEventListener("click", () => {
             isSignup = !isSignup;
-            formTitle.textContent = isSignup ? "Echo Cadastro" : "Echo WhatsApp";
+            formTitle.textContent = isSignup ? "Echo Cadastro" : "Echo Messenger";
             authBtn.textContent = isSignup ? "Cadastrar" : "Entrar";
             switchBtn.innerHTML = isSignup ? "Já tem uma conta? <span>Entrar</span>" : "Não tem uma conta? <span>Cadastre-se</span>";
             authError.textContent = "";
@@ -445,30 +483,22 @@ export default {
         authBtn.addEventListener("click", async () => {
             const username = usernameInput.value.trim();
             const password = passwordInput.value.trim();
-            if (!username || !password) {
-                authError.textContent = "Preencha todos os campos.";
-                return;
-            }
+            if (!username || !password) { authError.textContent = "Preencha todos os campos."; return; }
 
             const password_hash = await hashPassword(password);
-            const endpoint = isSignup ? "/api/signup" : "/api/login";
-
             try {
-                const res = await fetch(endpoint, {
+                const res = await fetch(isSignup ? "/api/signup" : "/api/login", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ username, password_hash })
                 });
                 const data = await res.json();
-                if (!res.ok) {
-                    authError.textContent = data.error || "Erro na autenticação.";
-                    return;
-                }
+                if (!res.ok) { authError.textContent = data.error || "Erro na autenticação."; return; }
 
                 if (isSignup) {
                     alert("Cadastro realizado! Faça login.");
                     isSignup = false;
-                    formTitle.textContent = "Echo WhatsApp";
+                    formTitle.textContent = "Echo Messenger";
                     authBtn.textContent = "Entrar";
                     switchBtn.innerHTML = "Não tem uma conta? <span>Cadastre-se</span>";
                     authError.textContent = "";
@@ -479,79 +509,140 @@ export default {
                     tx.objectStore("auth").put({ username, password_hash, profile_pic: currentProfilePic });
                     startApp();
                 }
-            } catch (err) {
-                authError.textContent = "Erro de conexão com o servidor.";
-            }
+            } catch (err) { authError.textContent = "Erro de conexão com o servidor."; }
         });
 
         function startApp() {
             authCard.classList.add("hidden");
             appContainer.classList.remove("hidden");
             updateAvatarUI();
-            loadOfflineMessages();
+            ensureEchoAiContact();
+            loadContacts();
             initWebSocket();
+        }
+
+        function ensureEchoAiContact() {
+            const tx = db.transaction("contacts", "readwrite");
+            const store = tx.objectStore("contacts");
+            store.get("EchoAI").onsuccess = (e) => {
+                if (!e.target.result) {
+                    store.put({ username: "EchoAI" });
+                }
+            };
         }
 
         function updateAvatarUI() {
             const containers = [document.getElementById("my-avatar-container"), document.getElementById("modal-avatar-preview")];
             containers.forEach(cont => {
                 if (!cont) return;
-                if (currentProfilePic) {
-                    cont.innerHTML = \`<img src="\${currentProfilePic}" alt="Avatar" />\`;
-                } else {
-                    cont.innerHTML = \`<span>\${currentUser.charAt(0).toUpperCase()}</span>\`;
-                }
+                if (currentProfilePic) cont.innerHTML = `<img src="${currentProfilePic}" />`;
+                else cont.innerHTML = `<span>${currentUser.charAt(0).toUpperCase()}</span>`;
             });
-        }
-
-        function loadOfflineMessages() {
-            const tx = db.transaction("messages", "readonly");
-            const req = tx.objectStore("messages").getAll();
-            req.onsuccess = () => {
-                const messagesContainer = document.getElementById("messages");
-                messagesContainer.innerHTML = "";
-                req.result.forEach(msg => appendMessageUI(msg.sender, msg.content, msg.msgType, msg.sender === currentUser));
-            };
-        }
-
-        function saveMessageToIndexedDB(sender, content, msgType) {
-            const tx = db.transaction("messages", "readwrite");
-            tx.objectStore("messages").add({ sender, content, msgType, timestamp: new Date() });
         }
 
         function initWebSocket() {
             const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-            socket = new WebSocket(\`\${protocol}//\${window.location.host}/ws\`);
+            socket = new WebSocket(`${protocol}//${window.location.host}/ws`);
 
-            socket.addEventListener("message", (event) => {
+            socket.addEventListener("open", () => {
+                socket.send(JSON.stringify({ type: "auth", username: currentUser }));
+            });
+
+            socket.addEventListener("message", async (event) => {
                 const data = JSON.parse(event.data);
                 if (data.type === "history") {
-                    const tx = db.transaction("messages", "readwrite");
-                    const store = tx.objectStore("messages");
-                    store.clear();
+                    messagesStore = {};
                     data.messages.forEach(msg => {
-                        store.add({ sender: msg.sender, content: msg.content, msgType: msg.type });
+                        const peer = msg.sender === currentUser ? msg.recipient : msg.sender;
+                        if (!messagesStore[peer]) messagesStore[peer] = [];
+                        messagesStore[peer].push(msg);
                     });
-                    loadOfflineMessages();
+                    if (activeRecipient) renderMessages(activeRecipient);
                 } else if (data.type === "message") {
-                    saveMessageToIndexedDB(data.sender, data.content, data.msgType);
-                    appendMessageUI(data.sender, data.content, data.msgType, data.sender === currentUser);
+                    const peer = data.sender === currentUser ? data.recipient : data.sender;
+                    if (!messagesStore[peer]) messagesStore[peer] = [];
+                    messagesStore[peer].push(data);
+                    if (activeRecipient === peer) renderMessages(activeRecipient);
+                } else if (data.type === "call-signal") {
+                    handleSignalingData(data);
                 }
             });
+        }
+
+        function loadContacts() {
+            const tx = db.transaction("contacts", "readonly");
+            const req = tx.objectStore("contacts").getAll();
+            req.onsuccess = () => {
+                const list = req.result.map(c => c.username);
+                if (!list.includes("EchoAI")) list.unshift("EchoAI");
+                contacts = list;
+                renderContactsList();
+            };
+        }
+
+        function renderContactsList() {
+            const list = document.getElementById("contact-list");
+            list.innerHTML = "";
+            contacts.forEach(contact => {
+                const item = document.createElement("div");
+                item.className = `contact-item ${activeRecipient === contact ? "active" : ""}`;
+                const subtitle = contact === "EchoAI" ? "Assistente GLM-2" : "Chat Seguro";
+                item.innerHTML = `<div class="avatar">${contact.charAt(0).toUpperCase()}</div><div style="flex:1;"><b>${contact}</b><p style="font-size:0.8rem; color:var(--wa-text-secondary);">${subtitle}</p></div>`;
+                item.onclick = () => selectContact(contact);
+                list.appendChild(item);
+            });
+        }
+
+        function selectContact(contact) {
+            activeRecipient = contact;
+            document.getElementById("active-chat-name").textContent = contact;
+            document.getElementById("active-chat-avatar").textContent = contact.charAt(0).toUpperCase();
+            document.getElementById("chat-form").classList.remove("hidden");
+            renderContactsList();
+            renderMessages(contact);
+        }
+
+        function renderMessages(contact) {
+            const container = document.getElementById("messages");
+            container.innerHTML = "";
+            const history = messagesStore[contact] || [];
+            history.forEach(msg => appendMessageUI(msg.sender, msg.content, msg.msgType, msg.file_name, msg.sender === currentUser));
         }
 
         document.getElementById("chat-form").addEventListener("submit", (e) => {
             e.preventDefault();
             const input = document.getElementById("message-input");
             const text = input.value.trim();
-            if (!text) return;
+            if (!text || !activeRecipient) return;
 
-            socket.send(JSON.stringify({ sender: currentUser, msgType: "text", content: text }));
+            const payload = { type: "message", sender: currentUser, recipient: activeRecipient, msgType: "text", content: text };
+            socket.send(JSON.stringify(payload));
+            if (!messagesStore[activeRecipient]) messagesStore[activeRecipient] = [];
+            messagesStore[activeRecipient].push({ sender: currentUser, recipient: activeRecipient, msgType: "text", content: text });
+            renderMessages(activeRecipient);
             input.value = "";
+        });
+
+        const fileInput = document.getElementById("file-attachment-input");
+        document.getElementById("attach-file-btn").addEventListener("click", () => fileInput.click());
+        fileInput.addEventListener("change", (e) => {
+            const file = e.target.files[0];
+            if (!file || !activeRecipient) return;
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onloadend = () => {
+                const payload = { type: "file", sender: currentUser, recipient: activeRecipient, msgType: "file", content: reader.result, file_name: file.name };
+                socket.send(JSON.stringify(payload));
+                if (!messagesStore[activeRecipient]) messagesStore[activeRecipient] = [];
+                messagesStore[activeRecipient].push(payload);
+                renderMessages(activeRecipient);
+            };
         });
 
         const recordBtn = document.getElementById("record-audio-btn");
         let isRecording = false;
+        let mediaRecorder;
+        let audioChunks = [];
 
         recordBtn.addEventListener("click", async () => {
             if (!isRecording) {
@@ -559,23 +650,23 @@ export default {
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                     mediaRecorder = new MediaRecorder(stream);
                     audioChunks = [];
-
-                    mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
+                    mediaRecorder.ondataavailable = ev => audioChunks.push(ev.data);
                     mediaRecorder.onstop = () => {
-                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        const blob = new Blob(audioChunks, { type: 'audio/webm' });
                         const reader = new FileReader();
-                        reader.readAsDataURL(audioBlob);
+                        reader.readAsDataURL(blob);
                         reader.onloadend = () => {
-                            socket.send(JSON.stringify({ sender: currentUser, msgType: "audio", content: reader.result }));
+                            const payload = { type: "audio", sender: currentUser, recipient: activeRecipient, msgType: "audio", content: reader.result };
+                            socket.send(JSON.stringify(payload));
+                            if (!messagesStore[activeRecipient]) messagesStore[activeRecipient] = [];
+                            messagesStore[activeRecipient].push(payload);
+                            renderMessages(activeRecipient);
                         };
                     };
-
                     mediaRecorder.start();
                     isRecording = true;
                     recordBtn.classList.add("recording");
-                } catch (err) {
-                    alert("Acesso ao microfone negado ou indisponível.");
-                }
+                } catch(e) { alert("Microfone indisponível."); }
             } else {
                 mediaRecorder.stop();
                 isRecording = false;
@@ -583,100 +674,119 @@ export default {
             }
         });
 
-        function appendMessageUI(sender, content, msgType, isOutgoing) {
-            const messagesContainer = document.getElementById("messages");
-            const messageDiv = document.createElement("div");
-            messageDiv.classList.add("message", isOutgoing ? "outgoing" : "incoming");
+        function appendMessageUI(sender, content, msgType, fileName, isOutgoing) {
+            const container = document.getElementById("messages");
+            const div = document.createElement("div");
+            div.className = `message ${isOutgoing ? "outgoing" : "incoming"}`;
+            let inner = `<b style="color: #53bdeb; display: block; font-size: 0.75rem; margin-bottom: 2px;">${sender}</b>`;
+            if (msgType === "text") inner += `<span>${content}</span>`;
+            else if (msgType === "audio") inner += `<audio controls src="${content}" style="width: 220px; height: 35px;"></audio>`;
+            else if (msgType === "file") inner += `<a href="${content}" download="${fileName || 'arquivo'}" style="color: #53bdeb; display: flex; align-items: center; gap: 6px; text-decoration: none;">📎 ${fileName || 'Baixar Arquivo'}</a>`;
+            div.innerHTML = inner;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
 
-            let innerHTML = \`<b style="color: #53bdeb; display: block; font-size: 0.75rem; margin-bottom: 2px;">\${sender}</b>\`;
-            if (msgType === "text") {
-                innerHTML += \`<span>\${content}</span>\`;
-            } else if (msgType === "audio") {
-                innerHTML += \`<audio controls src="\${content}" style="width: 220px; height: 35px; margin-top: 4px;"></audio>\`;
+        // WebRTC Calling
+        document.getElementById("audio-call-btn").onclick = () => startCall(false);
+        document.getElementById("video-call-btn").onclick = () => startCall(true);
+        document.getElementById("end-call-btn").onclick = endCall;
+
+        async function startCall(videoEnabled) {
+            if (!activeRecipient || activeRecipient === "EchoAI") return alert("Chamadas não estão disponíveis com EchoAI.");
+            document.getElementById("call-screen").classList.remove("hidden");
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: videoEnabled });
+                document.getElementById("local-video").srcObject = localStream;
+                createPeerConnection();
+                localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                socket.send(JSON.stringify({ type: "call-signal", sender: currentUser, recipient: activeRecipient, callType: videoEnabled ? "video" : "audio", signal: { type: "offer", sdp: offer.sdp } }));
+            } catch(e) { alert("Erro ao iniciar mídia para chamada."); endCall(); }
+        }
+
+        function createPeerConnection() {
+            pc = new RTCPeerConnection(rtcConfig);
+            pc.ontrack = e => { document.getElementById("remote-video").srcObject = e.streams[0]; };
+            pc.onicecandidate = e => {
+                if (e.candidate) socket.send(JSON.stringify({ type: "call-signal", sender: currentUser, recipient: activeRecipient, signal: { candidate: e.candidate } }));
+            };
+        }
+
+        async function handleSignalingData(data) {
+            const sig = data.signal;
+            if (!pc) {
+                document.getElementById("call-screen").classList.remove("hidden");
+                localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: data.callType === "video" });
+                document.getElementById("local-video").srcObject = localStream;
+                createPeerConnection();
+                localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
             }
+            if (sig.type === "offer") {
+                await pc.setRemoteDescription(new RTCSessionDescription(sig));
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                socket.send(JSON.stringify({ type: "call-signal", sender: currentUser, recipient: data.sender, signal: { type: "answer", sdp: answer.sdp } }));
+            } else if (sig.type === "answer") {
+                await pc.setRemoteDescription(new RTCSessionDescription(sig));
+            } else if (sig.candidate) {
+                await pc.addIceCandidate(new RTCIceCandidate(sig.candidate));
+            }
+        }
 
-            messageDiv.innerHTML = innerHTML;
-            messagesContainer.appendChild(messageDiv);
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        function endCall() {
+            if (localStream) localStream.getTracks().forEach(t => t.stop());
+            if (pc) pc.close();
+            pc = null;
+            document.getElementById("call-screen").classList.add("hidden");
         }
 
         const contactModal = document.getElementById("contact-modal");
-        document.getElementById("open-contact-modal").addEventListener("click", () => contactModal.classList.remove("hidden"));
-        document.getElementById("close-contact-modal").addEventListener("click", () => contactModal.classList.add("hidden"));
-        document.getElementById("add-contact-confirm").addEventListener("click", () => {
-            const contactName = document.getElementById("new-contact-name").value.trim();
-            if (contactName) {
-                const list = document.getElementById("contact-list");
-                const item = document.createElement("div");
-                item.className = "contact-item";
-                item.innerHTML = \`<div class="avatar" style="background:#374248">\${contactName.charAt(0).toUpperCase()}</div><div style="flex:1;"><b style="font-size:0.98rem;">\${contactName}</b><p style="font-size: 0.8rem; color: var(--wa-text-secondary);">Conversa privada</p></div>\`;
-                list.appendChild(item);
-                document.getElementById("new-contact-name").value = "";
+        document.getElementById("open-contact-modal").onclick = () => contactModal.classList.remove("hidden");
+        document.getElementById("close-contact-modal").onclick = () => contactModal.classList.add("hidden");
+        document.getElementById("add-contact-confirm").onclick = () => {
+            const name = document.getElementById("new-contact-name").value.trim();
+            if (name && !contacts.includes(name)) {
+                contacts.push(name);
+                db.transaction("contacts", "readwrite").objectStore("contacts").put({ username: name });
+                renderContactsList();
                 contactModal.classList.add("hidden");
+                document.getElementById("new-contact-name").value = "";
             }
-        });
+        };
 
         const profileModal = document.getElementById("profile-modal");
-        document.getElementById("open-profile-modal").addEventListener("click", () => profileModal.classList.remove("hidden"));
-        document.getElementById("close-profile-modal").addEventListener("click", () => profileModal.classList.add("hidden"));
+        document.getElementById("open-profile-modal").onclick = () => profileModal.classList.remove("hidden");
+        document.getElementById("close-profile-modal").onclick = () => profileModal.classList.add("hidden");
+        const profileFileInput = document.getElementById("profile-file-input");
+        document.getElementById("trigger-upload-btn").onclick = () => profileFileInput.click();
         
-        const fileInput = document.getElementById("profile-file-input");
-        document.getElementById("trigger-upload-btn").addEventListener("click", () => fileInput.click());
-
-        let tempBase64Image = "";
-        let uuidFilename = "";
-
-        fileInput.addEventListener("change", (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            uuidFilename = generateUUIDv7() + ".jpg";
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onloadend = () => {
-                tempBase64Image = reader.result;
-                document.getElementById("modal-avatar-preview").innerHTML = \`<img src="\${tempBase64Image}" />\`;
+        let tempPic = "";
+        profileFileInput.onchange = (e) => {
+            const f = e.target.files[0];
+            if (!f) return;
+            const r = new FileReader();
+            r.readAsDataURL(f);
+            r.onloadend = () => {
+                tempPic = r.result;
+                document.getElementById("modal-avatar-preview").innerHTML = `<img src="${tempPic}" />`;
             };
-        });
+        };
 
-        document.getElementById("save-profile-confirm").addEventListener("click", async () => {
-            if (!tempBase64Image) {
-                profileModal.classList.add("hidden");
-                return;
-            }
-
-            try {
-                const res = await fetch("/api/profile-pic", {
+        document.getElementById("save-profile-confirm").onclick = async () => {
+            if (tempPic) {
+                await fetch("/api/profile-pic", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        username: currentUser,
-                        uuid_filename: uuidFilename,
-                        file_data: tempBase64Image
-                    })
+                    body: JSON.stringify({ username: currentUser, uuid_filename: "avatar.jpg", file_data: tempPic })
                 });
-
-                if (res.ok) {
-                    const data = await res.json();
-                    currentProfilePic = data.profile_pic;
-                    updateAvatarUI();
-                    
-                    const tx = db.transaction("auth", "readwrite");
-                    const store = tx.objectStore("auth");
-                    store.get(currentUser).onsuccess = (e) => {
-                        const record = e.target.result;
-                        if (record) {
-                            record.profile_pic = currentProfilePic;
-                            store.put(record);
-                        }
-                    };
-                }
-            } catch (err) {
-                console.error("Erro ao enviar imagem", err);
+                currentProfilePic = tempPic;
+                updateAvatarUI();
             }
-
             profileModal.classList.add("hidden");
-        });
+        };
     </script>
 </body>
 </html>`;
