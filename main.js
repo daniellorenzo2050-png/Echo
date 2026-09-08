@@ -591,34 +591,37 @@ export default {
             });
         }
 
-        function initWebSocket() {
-            const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-            socket = new WebSocket(`${protocol}//${window.location.host}/ws`);
+                        function initWebSocket() {
+            var protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+            var host = window.location.host;
+            socket = new WebSocket(protocol + "//" + host + "/ws");
 
-            socket.addEventListener("open", () => {
+            socket.onopen = function() {
                 socket.send(JSON.stringify({ type: "auth", username: currentUser }));
-            });
+            };
 
-            socket.addEventListener("message", async (event) => {
-                const data = JSON.parse(event.data);
+            socket.onmessage = function(event) {
+                var data = JSON.parse(event.data);
                 if (data.type === "history") {
                     messagesStore = {};
-                    data.messages.forEach(msg => {
-                        const peer = msg.sender === currentUser ? msg.recipient : msg.sender;
+                    data.messages.forEach(function(msg) {
+                        var peer = msg.sender === currentUser ? msg.recipient : msg.sender;
                         if (!messagesStore[peer]) messagesStore[peer] = [];
                         messagesStore[peer].push(msg);
                     });
                     if (activeRecipient) renderMessages(activeRecipient);
                 } else if (data.type === "message") {
-                    const peer = data.sender === currentUser ? data.recipient : data.sender;
+                    var peer = data.sender === currentUser ? data.recipient : data.sender;
                     if (!messagesStore[peer]) messagesStore[peer] = [];
                     messagesStore[peer].push(data);
                     if (activeRecipient === peer) renderMessages(activeRecipient);
                 } else if (data.type === "call-signal") {
                     handleSignalingData(data);
                 }
-            });
+            };
         }
+
+
 
         function loadContacts() {
             const tx = db.transaction("contacts", "readonly");
