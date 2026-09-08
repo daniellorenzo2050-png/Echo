@@ -32,7 +32,7 @@ export class ChatRoom {
     const method = request.method;
 
     if (method === "GET" && path === "/api/") {
-      return new Response(JSON.stringify({ status: "Echo Secure Edition com EchoAI (GLM-2) Online" }), {
+      return new Response(JSON.stringify({ status: "Online" }), {
         headers: getSecurityHeaders({ "Content-Type": "application/json;charset=UTF-8" })
       });
     }
@@ -65,7 +65,13 @@ export class ChatRoom {
           return new Response(JSON.stringify({ error: "Credenciais inválidas" }), { status: 401, headers: getSecurityHeaders({ "Content-Type": "application/json" }) });
         }
 
-        return new Response(JSON.stringify({ message: "Login bem-sucedido", username, profile_pic: user[0].profile_pic || "" }), { status: 200, headers: getSecurityHeaders({ "Content-Type": "application/json" }) });
+        let profilePic = user[0].profile_pic || "";
+        if (this.env && this.env.EchoKV) {
+          const cachedPic = await this.env.EchoKV.get(`profile_pic_${username}`);
+          if (cachedPic) profilePic = cachedPic;
+        }
+
+        return new Response(JSON.stringify({ message: "Login bem-sucedido", username, profile_pic: profilePic }), { status: 200, headers: getSecurityHeaders({ "Content-Type": "application/json" }) });
       } catch (e) {
         return new Response(JSON.stringify({ error: "Erro interno" }), { status: 500, headers: getSecurityHeaders({ "Content-Type": "application/json" }) });
       }
@@ -79,6 +85,11 @@ export class ChatRoom {
         }
 
         this.sql.exec("UPDATE users SET profile_pic = ? WHERE username = ?", file_data, username);
+        
+        if (this.env && this.env.EchoKV) {
+          await this.env.EchoKV.put(`profile_pic_${username}`, file_data);
+        }
+
         return new Response(JSON.stringify({ message: "Foto atualizada", uuid_filename, profile_pic: file_data }), { status: 200, headers: getSecurityHeaders({ "Content-Type": "application/json" }) });
       } catch (e) {
         return new Response(JSON.stringify({ error: "Erro ao salvar foto" }), { status: 500, headers: getSecurityHeaders({ "Content-Type": "application/json" }) });
@@ -139,12 +150,12 @@ export class ChatRoom {
           }
 
           if (data.recipient === "EchoAI" && data.msgType === "text") {
-            let aiReplyText = "Olá! Sou o EchoAI impulsionado por GLM-2. Como posso ajudar você no Echo?";
+            let aiReplyText = "Olá! Como posso ajudar você hoje?";
             try {
               if (this.env && this.env.AI) {
                 const aiResponse = await this.env.AI.run("@cf/zai-org/glm-2-7b", {
                   messages: [
-                    { role: "system", content: "Você é o EchoAI, um assistente inteligente integrado ao aplicativo Echo. Ajude o usuário em suas tarefas de forma concisa e direta." },
+                    { role: "system", content: "Você é um assistente virtual prestativo e amigável. Responda de forma concisa e direta." },
                     { role: "user", content: data.content }
                   ]
                 });
@@ -153,7 +164,7 @@ export class ChatRoom {
                 }
               }
             } catch (aiErr) {
-              aiReplyText = "EchoAI conectado, mas ocorreu um pequeno atraso ao processar via GLM-2. Sua mensagem foi: " + data.content;
+              aiReplyText = "Estou com uma instabilidade momentânea no momento. Sua mensagem foi: " + data.content;
             }
 
             this.sql.exec(
@@ -219,7 +230,7 @@ function getSecurityHeaders(additionalHeaders = {}) {
     "X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet",
     "Permissions-Policy": "accelerometer=(), camera=(self), geolocation=(), microphone=(self), payment=(), usb=()",
     "Cache-Control": "no-store, no-cache, must-revalidate",
-    "Server": "Echo-Secure-Edge"
+    "Server": "Echo"
   };
   return { ...securityHeaders, ...additionalHeaders };
 }
@@ -364,7 +375,7 @@ export default {
                 <div class="avatar" id="active-chat-avatar" style="background: var(--wa-accent);">?</div>
                 <div style="flex:1;">
                     <b id="active-chat-name" style="font-size: 0.98rem; display:block;">Selecione um contato</b>
-                    <p style="font-size: 0.73rem; color: var(--wa-text-secondary);">Echo Secure Protocol</p>
+                    <p style="font-size: 0.73rem; color: var(--wa-text-secondary);">Online</p>
                 </div>
                 <div style="display: flex; gap: 10px;">
                     <button class="icon-btn" id="audio-call-btn" title="Ligação de Áudio">📞</button>
@@ -585,7 +596,7 @@ export default {
             contacts.forEach(contact => {
                 const item = document.createElement("div");
                 item.className = `contact-item ${activeRecipient === contact ? "active" : ""}`;
-                const subtitle = contact === "EchoAI" ? "Assistente GLM-2" : "Chat Seguro";
+                const subtitle = contact === "EchoAI" ? "Assistente Virtual" : "Conversa";
                 item.innerHTML = `<div class="avatar">${contact.charAt(0).toUpperCase()}</div><div style="flex:1;"><b>${contact}</b><p style="font-size:0.8rem; color:var(--wa-text-secondary);">${subtitle}</p></div>`;
                 item.onclick = () => selectContact(contact);
                 list.appendChild(item);
@@ -726,7 +737,7 @@ export default {
                 await pc.setRemoteDescription(new RTCSessionDescription(sig));
                 const answer = await pc.createAnswer();
                 await pc.setLocalDescription(answer);
-                socket.send(JSON.stringify({ type: "call-signal", sender: currentUser, recipient: data.sender, signal: { type: "answer", sdp: answer.sdp } }));
+                socket.send(JSON.stringify({ type: "call-signal", sender: data.sender, recipient: currentUser, signal: { type: "answer", sdp: answer.sdp } }));
             } else if (sig.type === "answer") {
                 await pc.setRemoteDescription(new RTCSessionDescription(sig));
             } else if (sig.candidate) {
