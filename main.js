@@ -138,7 +138,6 @@ export class ChatRoom {
             }
           }
 
-          // Resposta automática do EchoAI utilizando modelo GLM-2 via Cloudflare AI Binding
           if (data.recipient === "EchoAI" && data.msgType === "text") {
             let aiReplyText = "Olá! Sou o EchoAI impulsionado por GLM-2. Como posso ajudar você no Echo?";
             try {
@@ -535,8 +534,8 @@ export default {
             const containers = [document.getElementById("my-avatar-container"), document.getElementById("modal-avatar-preview")];
             containers.forEach(cont => {
                 if (!cont) return;
-                if (currentProfilePic) cont.innerHTML = `<img src="${currentProfilePic}" />`;
-                else cont.innerHTML = `<span>${currentUser.charAt(0).toUpperCase()}</span>`;
+                if (currentProfilePic) cont.innerHTML = '<img src="' + currentProfilePic + '" />';
+                else cont.innerHTML = '<span>' + currentUser.charAt(0).toUpperCase() + '</span>';
             });
         }
 
@@ -687,7 +686,6 @@ export default {
             container.scrollTop = container.scrollHeight;
         }
 
-        // WebRTC Calling
         document.getElementById("audio-call-btn").onclick = () => startCall(false);
         document.getElementById("video-call-btn").onclick = () => startCall(true);
         document.getElementById("end-call-btn").onclick = endCall;
@@ -771,7 +769,7 @@ export default {
             r.readAsDataURL(f);
             r.onloadend = () => {
                 tempPic = r.result;
-                document.getElementById("modal-avatar-preview").innerHTML = `<img src="${tempPic}" />`;
+                document.getElementById("modal-avatar-preview").innerHTML = '<img src="' + tempPic + '" />';
             };
         };
 
