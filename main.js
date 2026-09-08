@@ -23,6 +23,11 @@ export class ChatRoom {
         file_name TEXT,
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
       );
+      CREATE TABLE IF NOT EXISTS groups (
+        group_id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        members TEXT NOT NULL
+      );
     `);
   }
 
@@ -79,7 +84,7 @@ export class ChatRoom {
 
     if (method === "POST" && path === "/api/profile-pic") {
       try {
-        const { username, uuid_filename, file_data } = await request.json();
+        const { username, file_data } = await request.json();
         if (!username || !file_data) {
           return new Response(JSON.stringify({ error: "Dados inválidos" }), { status: 400, headers: getSecurityHeaders({ "Content-Type": "application/json" }) });
         }
@@ -90,9 +95,22 @@ export class ChatRoom {
           await this.env.EchoKV.put(`profile_pic_${username}`, file_data);
         }
 
-        return new Response(JSON.stringify({ message: "Foto atualizada", uuid_filename, profile_pic: file_data }), { status: 200, headers: getSecurityHeaders({ "Content-Type": "application/json" }) });
+        return new Response(JSON.stringify({ message: "Foto atualizada", profile_pic: file_data }), { status: 200, headers: getSecurityHeaders({ "Content-Type": "application/json" }) });
       } catch (e) {
         return new Response(JSON.stringify({ error: "Erro ao salvar foto" }), { status: 500, headers: getSecurityHeaders({ "Content-Type": "application/json" }) });
+      }
+    }
+
+    if (method === "POST" && path === "/api/create-group") {
+      try {
+        const { group_id, name, members } = await request.json();
+        if (!group_id || !name || !members) {
+          return new Response(JSON.stringify({ error: "Dados inválidos" }), { status: 400, headers: getSecurityHeaders({ "Content-Type": "application/json" }) });
+        }
+        this.sql.exec("INSERT OR REPLACE INTO groups (group_id, name, members) VALUES (?, ?, ?)", group_id, name, JSON.stringify(members));
+        return new Response(JSON.stringify({ message: "Grupo criado com sucesso" }), { status: 200, headers: getSecurityHeaders({ "Content-Type": "application/json" }) });
+      } catch(e) {
+        return new Response(JSON.stringify({ error: "Erro ao criar grupo" }), { status: 500, headers: getSecurityHeaders({ "Content-Type": "application/json" }) });
       }
     }
 
@@ -136,7 +154,7 @@ export class ChatRoom {
           );
 
           for (const session of this.sessions) {
-            if (session.username === data.recipient || session.username === data.sender) {
+            if (session.username === data.recipient || session.username === data.sender || (data.recipient.startsWith("group_") && data.recipient)) {
               session.send(JSON.stringify({
                 type: "message",
                 sender: data.sender,
@@ -164,7 +182,7 @@ export class ChatRoom {
                 }
               }
             } catch (aiErr) {
-              aiReplyText = "Estou com uma instabilidade momentânea no momento. Sua mensagem foi: " + data.content;
+              aiReplyText = "Estou com uma instabilidade momentânea. Sua mensagem foi: " + data.content;
             }
 
             this.sql.exec(
@@ -283,9 +301,12 @@ export default {
             display: flex; justify-content: center; align-items: center;
             background: rgba(11, 20, 26, 0.94);
         }
-        .auth-container { width: 100%; max-width: 400px; background: var(--wa-bg-panel); padding: 36px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); display: flex; flex-direction: column; gap: 18px; border: 1px solid var(--wa-border); margin: 20px; }
-        .auth-container h2 { color: var(--wa-accent); text-align: center; font-size: 1.6rem; }
-        .auth-container input { padding: 12px 14px; border-radius: 4px; border: 1px solid var(--wa-border); background: var(--wa-bg-chat); color: var(--wa-text-primary); outline: none; font-size: 0.95rem; }
+        .auth-container { width: 100%; max-width: 400px; background: var(--wa-bg-panel); padding: 36px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); display: flex; flex-direction: column; gap: 18px; border: 1px solid var(--wa-border); margin: 20px; text-align: center; }
+        .logo-container { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 5px; }
+        .logo-icon { width: 42px; height: 42px; border: 2px solid var(--wa-accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; position: relative; color: var(--wa-accent); font-size: 1.2rem; background: var(--wa-bg-chat); }
+        .auth-container h2 { color: var(--wa-text-primary); font-size: 1.5rem; }
+        .slogan { font-size: 0.82rem; color: var(--wa-text-secondary); margin-top: -10px; margin-bottom: 5px; }
+        .auth-container input { padding: 12px 14px; border-radius: 4px; border: 1px solid var(--wa-border); background: var(--wa-bg-chat); color: var(--wa-text-primary); outline: none; font-size: 0.95rem; text-align: left; }
         .auth-container input:focus { border-color: var(--wa-accent); }
         .auth-container button { padding: 12px; background: var(--wa-accent); color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 1rem; transition: background 0.2s; }
         .auth-container button:hover { background: var(--wa-accent-hover); }
@@ -306,6 +327,7 @@ export default {
         .avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: #374248; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #fff; overflow: hidden; flex-shrink: 0; }
         .avatar img { width: 100%; height: 100%; object-fit: cover; }
         
+        .action-buttons { display: flex; gap: 6px; align-items: center; }
         .contact-list { flex: 1; overflow-y: auto; background: var(--wa-bg-sidebar); }
         .contact-item { padding: 0 16px; height: 72px; display: flex; align-items: center; gap: 14px; cursor: pointer; border-bottom: 1px solid rgba(34, 45, 52, 0.5); transition: background 0.15s; }
         .contact-item:hover, .contact-item.active { background: var(--wa-bg-panel); }
@@ -326,12 +348,12 @@ export default {
         .chat-input-area { padding: 10px 16px; background: var(--wa-bg-panel); display: flex; gap: 10px; align-items: center; height: 62px; border-top: 1px solid var(--wa-border); }
         .chat-input-area input { flex: 1; padding: 10px 14px; border-radius: 8px; border: none; background: var(--wa-bg-chat); color: var(--wa-text-primary); outline: none; font-size: 0.95rem; }
         
-        .icon-btn { background: transparent; border: none; color: var(--wa-text-secondary); cursor: pointer; font-size: 1.25rem; padding: 8px; border-radius: 50%; transition: background 0.15s; display: flex; align-items: center; justify-content: center; }
+        .icon-btn { background: transparent; border: none; color: var(--wa-text-secondary); cursor: pointer; font-size: 1.15rem; padding: 6px; border-radius: 50%; transition: background 0.15s; display: flex; align-items: center; justify-content: center; }
         .icon-btn:hover { background: rgba(255,255,255,0.05); color: var(--wa-text-primary); }
         .icon-btn.recording { color: #ef4444; background: rgba(239, 68, 68, 0.1); }
         
         .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 100; backdrop-filter: blur(2px); }
-        .modal-content { background: var(--wa-bg-panel); padding: 26px; border-radius: 8px; width: 360px; display: flex; flex-direction: column; gap: 16px; border: 1px solid var(--wa-border); box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .modal-content { background: var(--wa-bg-panel); padding: 26px; border-radius: 8px; width: 380px; display: flex; flex-direction: column; gap: 16px; border: 1px solid var(--wa-border); box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
         .modal-content h3 { color: var(--wa-accent); font-size: 1.2rem; }
         
         .call-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0b141a; z-index: 200; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 40px; }
@@ -346,7 +368,12 @@ export default {
 <body>
     <div id="auth-card" class="auth-wrapper">
         <div class="auth-container">
-            <h2 id="form-title">Echo Messenger</h2>
+            <div class="logo-container">
+                <div class="logo-icon">🌐<span style="position: absolute; font-size: 0.65rem; background: var(--wa-accent); border-radius: 50%; padding: 2px 4px; bottom: -2px; right: -2px; color: #fff;">💬</span></div>
+                <h2 style="margin: 0; color: var(--wa-accent);">Echo</h2>
+            </div>
+            <p class="slogan">Converse, ligue, Message, Internet</p>
+            <h2 id="form-title" style="font-size: 1.1rem; color: var(--wa-text-primary); font-weight: 500;">Entre na sua conta</h2>
             <input type="text" id="username" placeholder="Nome de usuário" required />
             <input type="password" id="password" placeholder="Senha" required />
             <button id="auth-btn">Entrar</button>
@@ -363,8 +390,10 @@ export default {
                         <span id="avatar-initial">U</span>
                     </div>
                 </div>
-                <div style="display: flex; gap: 2px;">
-                    <button class="icon-btn" id="open-contact-modal" title="Novo Contato">💬</button>
+                <div class="action-buttons">
+                    <button class="icon-btn" id="open-group-modal" title="Criar Grupo">👥</button>
+                    <button class="icon-btn" id="open-echoai-btn" title="EchoAI">🤖</button>
+                    <button class="icon-btn" id="open-contact-modal" title="Adicionar Contato">💬</button>
                 </div>
             </div>
             <div id="contact-list" class="contact-list"></div>
@@ -406,7 +435,7 @@ export default {
 
     <div id="contact-modal" class="modal hidden">
         <div class="modal-content">
-            <h3>Novo Contato</h3>
+            <h3>Adicionar Contato</h3>
             <input type="text" id="new-contact-name" placeholder="Nome de usuário exato" />
             <div style="display: flex; gap: 10px; margin-top: 5px;">
                 <button id="add-contact-confirm" style="flex: 1; padding: 10px; background: var(--wa-accent); border: none; border-radius: 4px; color: #fff; font-weight: 600; cursor: pointer;">Adicionar</button>
@@ -415,13 +444,25 @@ export default {
         </div>
     </div>
 
+    <div id="group-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>Criar Grupo</h3>
+            <input type="text" id="new-group-name" placeholder="Nome do grupo" />
+            <input type="text" id="group-members" placeholder="Membros (separados por vírgula)" />
+            <div style="display: flex; gap: 10px; margin-top: 5px;">
+                <button id="create-group-confirm" style="flex: 1; padding: 10px; background: var(--wa-accent); border: none; border-radius: 4px; color: #fff; font-weight: 600; cursor: pointer;">Criar</button>
+                <button id="close-group-modal" style="flex: 1; padding: 10px; background: var(--wa-border); border: none; border-radius: 4px; color: #fff; cursor: pointer;">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
     <div id="profile-modal" class="modal hidden">
         <div class="modal-content">
-            <h3>Perfil do Usuário</h3>
+            <h3>Foto de Perfil</h3>
             <div style="display: flex; flex-direction: column; align-items: center; gap: 12px;">
                 <div class="avatar" id="modal-avatar-preview" style="width: 90px; height: 90px; font-size: 2rem;">U</div>
                 <input type="file" id="profile-file-input" accept="image/*" style="display: none;" />
-                <button type="button" id="trigger-upload-btn" style="padding: 10px 16px; background: var(--wa-bg-chat); border: 1px solid var(--wa-border); border-radius: 4px; color: #fff; cursor: pointer; width: 100%; font-weight: 500;">Upload Foto de perfil</button>
+                <button type="button" id="trigger-upload-btn" style="padding: 10px 16px; background: var(--wa-bg-chat); border: 1px solid var(--wa-border); border-radius: 4px; color: #fff; cursor: pointer; width: 100%; font-weight: 500;">Selecionar Imagem</button>
             </div>
             <div style="display: flex; gap: 10px; margin-top: 10px;">
                 <button id="save-profile-confirm" style="flex: 1; padding: 10px; background: var(--wa-accent); border: none; border-radius: 4px; color: #fff; font-weight: 600; cursor: pointer;">Salvar</button>
@@ -484,7 +525,7 @@ export default {
 
         switchBtn.addEventListener("click", () => {
             isSignup = !isSignup;
-            formTitle.textContent = isSignup ? "Echo Cadastro" : "Echo Messenger";
+            formTitle.textContent = isSignup ? "Crie sua conta" : "Entre na sua conta";
             authBtn.textContent = isSignup ? "Cadastrar" : "Entrar";
             switchBtn.innerHTML = isSignup ? "Já tem uma conta? <span>Entrar</span>" : "Não tem uma conta? <span>Cadastre-se</span>";
             authError.textContent = "";
@@ -508,7 +549,7 @@ export default {
                 if (isSignup) {
                     alert("Cadastro realizado! Faça login.");
                     isSignup = false;
-                    formTitle.textContent = "Echo Messenger";
+                    formTitle.textContent = "Entre na sua conta";
                     authBtn.textContent = "Entrar";
                     switchBtn.innerHTML = "Não tem uma conta? <span>Cadastre-se</span>";
                     authError.textContent = "";
@@ -766,6 +807,31 @@ export default {
             }
         };
 
+        const groupModal = document.getElementById("group-modal");
+        document.getElementById("open-group-modal").onclick = () => groupModal.classList.remove("hidden");
+        document.getElementById("close-group-modal").onclick = () => groupModal.classList.add("hidden");
+        document.getElementById("create-group-confirm").onclick = async () => {
+            const gName = document.getElementById("new-group-name").value.trim();
+            const gMembers = document.getElementById("group-members").value.split(',').map(m => m.trim()).filter(Boolean);
+            if (gName && gMembers.length > 0) {
+                const groupId = "group_" + Date.now();
+                gMembers.push(currentUser);
+                await fetch("/api/create-group", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ group_id: groupId, name: gName, members: gMembers })
+                });
+                contacts.push(gName);
+                db.transaction("contacts", "readwrite").objectStore("contacts").put({ username: gName });
+                renderContactsList();
+                groupModal.classList.add("hidden");
+                document.getElementById("new-group-name").value = "";
+                document.getElementById("group-members").value = "";
+            }
+        };
+
+        document.getElementById("open-echoai-btn").onclick = () => selectContact("EchoAI");
+
         const profileModal = document.getElementById("profile-modal");
         document.getElementById("open-profile-modal").onclick = () => profileModal.classList.remove("hidden");
         document.getElementById("close-profile-modal").onclick = () => profileModal.classList.add("hidden");
@@ -789,7 +855,7 @@ export default {
                 await fetch("/api/profile-pic", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ username: currentUser, uuid_filename: "avatar.jpg", file_data: tempPic })
+                    body: JSON.stringify({ username: currentUser, file_data: tempPic })
                 });
                 currentProfilePic = tempPic;
                 updateAvatarUI();
