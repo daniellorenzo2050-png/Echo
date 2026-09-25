@@ -1,20 +1,24 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "echo",
-  "main": "main.js",
+  "name": "echo-chat-platform",
+  "main": "src/index.ts",
   "compatibility_date": "2026-03-01",
-  "compatibility_flags": [
-    "nodejs_compat"
-  ],
-  "ai": {
-    "binding": "AI"
-  },
-  "kv_namespaces": [
+
+  "d1_databases": [
     {
-      "binding": "EchoKV",
-      "id": "0c09082fd274457b96b720502424c9c6"
+      "binding": "DB",
+      "database_name": "echo-db",
+      "database_id": "ac99a8d0-2b4b-44c4-99f8-a9efa2a2f3b5"
     }
   ],
+
+  "kv_namespaces": [
+    {
+      "binding": "ECHO_KV",
+      "id": "e1578b9bc66d4fc2956c4c8d732a1e8c"
+    }
+  ],
+
   "durable_objects": {
     "bindings": [
       {
@@ -26,9 +30,7 @@
   "migrations": [
     {
       "tag": "v1",
-      "new_sqlite_classes": [
-        "ChatRoom"
-      ]
+      "new_sqlite_classes": ["ChatRoom"]
     }
   ]
 }
