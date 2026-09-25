@@ -5,15 +5,30 @@ export interface Env {
   DB: D1Database;
   ECHO_KV: KVNamespace;
   CHAT_ROOM: DurableObjectNamespace;
-  JWK_SERCET: string;
+  // Agora espera uma JWK privada ou pública em formato JSON string no Cloudflare Secret
+  JWK_SECRET: string;
+  JWK_PUBLIC?: string; // Opcional: Se quiser separar a chave pública
 }
 
-async function getJwkKey(jwkString: string) {
+// Helper para importar a Chave Privada (para assinar no Login)
+async function getPrivateKey(jwkString: string) {
   try {
     const jwk = JSON.parse(jwkString);
-    return await importJWK(jwk, "HS256");
+    return await importJWK(jwk, "Ed25519");
   } catch (e) {
-    throw new Error("JWK_SERCET inválido.");
+    throw new Error("JWK_SECRET privada inválida ou mal formatada.");
+  }
+}
+
+// Helper para importar a Chave Pública (para verificar nos Workers/DO)
+async function getPublicKey(jwkString: string) {
+  try {
+    const jwk = JSON.parse(jwkString);
+    // Remove o parâmetro 'd' se houver na JWK para garantir que seja tratada estritamente como pública
+    const { d, ...publicKeyJwk } = jwk;
+    return await importJWK(publicKeyJwk, "Ed25519");
+  } catch (e) {
+    throw new Error("JWK público inválido.");
   }
 }
 
@@ -39,11 +54,13 @@ export default {
     const token = authHeader.split(" ")[1];
     let username = "";
     try {
-      const secretKey = await getJwkKey(env.JWK_SERCET);
-      const { payload } = await jwtVerify(token, secretKey);
+      // Utiliza a chave pública para validar o token com Ed25519 na Edge
+      const pubKeyString = env.JWK_PUBLIC || env.JWK_SECRET;
+      const publicKey = await getPublicKey(pubKeyString);
+      const { payload } = await jwtVerify(token, publicKey);
       username = payload.sub as string;
     } catch (e) {
-      return Response.json({ error: "Token inválido" }, { status: 403 });
+      return Response.json({ error: "Token inválido ou expirado" }, { status: 403 });
     }
 
     if (url.pathname === "/api/profile/avatar" && request.method === "POST") {
@@ -88,13 +105,14 @@ async function handleLogin(request: Request, env: Env): Promise<Response> {
     const { username } = body;
     if (!username) return Response.json({ error: "Username obrigatório" }, { status: 400 });
 
-    const key = await getJwkKey(env.JWK_SERCET);
+    // Assina o JWT utilizando a chave privada Ed25519
+    const privateKey = await getPrivateKey(env.JWK_SECRET);
     const jwt = await new SignJWT({ username })
-      .setProtectedHeader({ alg: "HS256" })
+      .setProtectedHeader({ alg: "EdDSA" }) // Algoritmo padrão para Ed25519 no jose
       .setSubject(username)
       .setIssuedAt()
       .setExpirationTime("30d")
-      .sign(key);
+      .sign(privateKey);
 
     await env.DB.prepare(`
       CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, avatar TEXT);
@@ -161,7 +179,7 @@ export class ChatRoom extends DurableObject {
   }
 }
 
-// --- UI COMPLETA (SEM LOCALSTORAGE: TUDO NO INDEXEDDB + TAILWIND + FONT AWESOME) ---
+// --- UI COMPLETA (Skype UI + Tailwind + FontAwesome + IndexedDB Sem LocalStorage) ---
 function getEchoHtml(): string {
   return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -169,19 +187,13 @@ function getEchoHtml(): string {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Echo - Plataforma de Mensagens</title>
-  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Font Awesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <!-- Google Fonts Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    body { font-family: 'Inter', sans-serif; }
-  </style>
+  <style> body { font-family: 'Inter', sans-serif; } </style>
 </head>
 <body class="bg-[#0078d7] h-screen w-screen overflow-hidden flex flex-col">
 
-  <!-- Ícone SVG Customizado do Echo (Rede/Internet + Mensagem) -->
   <svg style="display:none">
     <symbol id="echo-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <circle cx="12" cy="12" r="10"></circle>
@@ -191,7 +203,6 @@ function getEchoHtml(): string {
     </symbol>
   </svg>
 
-  <!-- TELA DE CARREGAMENTO REAL COM PORCENTAGEM (%) -->
   <div id="loading-screen" class="fixed inset-0 bg-[#002050] z-50 flex flex-col items-center justify-center text-white">
     <div class="flex items-center gap-3 mb-6">
       <svg class="w-12 h-12 text-[#0078d7] animate-spin"><use href="#echo-logo"/></svg>
@@ -203,7 +214,6 @@ function getEchoHtml(): string {
     <p id="loading-text" class="text-sm text-gray-300 font-medium">Inicializando IndexedDB... (0%)</p>
   </div>
 
-  <!-- TELA DE LOGIN -->
   <div id="login-screen" class="fixed inset-0 bg-gradient-to-br from-[#0078d7] to-[#002050] z-40 flex flex-col items-center justify-center text-white p-4 hidden">
     <div class="bg-white/10 backdrop-blur-md p-8 rounded-2xl shadow-2xl border border-white/20 w-full max-w-md flex flex-col items-center">
       <div class="flex items-center gap-3 mb-6">
@@ -217,10 +227,7 @@ function getEchoHtml(): string {
     </div>
   </div>
 
-  <!-- APLICAÇÃO PRINCIPAL (Adaptada para tamanhos reais de tela) -->
   <div id="app" class="flex flex-col md:flex-row w-full h-full bg-white hidden">
-    
-    <!-- Sidebar -->
     <div id="sidebar" class="w-full md:w-80 bg-gray-50 border-r border-gray-200 flex flex-col h-full">
       <div class="p-4 bg-[#0078d7] text-white font-semibold flex justify-between items-center shadow-md">
         <div class="flex items-center gap-2">
@@ -245,7 +252,6 @@ function getEchoHtml(): string {
       </div>
     </div>
     
-    <!-- Área de Chat -->
     <div class="flex-1 flex flex-col h-full bg-white">
       <div class="p-4 border-b border-gray-200 font-semibold bg-white flex justify-between items-center shadow-sm">
         <div class="flex items-center gap-3">
@@ -285,7 +291,6 @@ function getEchoHtml(): string {
       document.getElementById("loading-text").innerText = text + " (" + percent + "%)";
     }
 
-    // Inicialização exclusiva via IndexedDB (Sem LocalStorage)
     window.addEventListener("DOMContentLoaded", () => {
       updateLoading(15, "Abrindo IndexedDB...");
       const requestDB = indexedDB.open("EchoDatabase_Secure", 1);
@@ -527,7 +532,7 @@ function getEchoHtml(): string {
       const div = document.createElement("div");
       div.className = "max-w-[75%] md:max-w-[60%] p-3 rounded-2xl text-sm leading-relaxed shadow-sm " + 
         (isOutgoing ? 'bg-[#0078d7] text-white self-end ml-auto rounded-br-none' : 'bg-white text-gray-800 self-start mr-auto border border-gray-200 rounded-bl-none');
-      div.innerHTML = \`<div class="font-bold text-xs opacity-80 mb-0.5">\${sender}</div><div>\${content}</div>\`;
+      div.innerHTML = `<div class="font-bold text-xs opacity-80 mb-0.5">${sender}</div><div>${content}</div>`;
       container.appendChild(div);
       container.scrollTop = container.scrollHeight;
     }
