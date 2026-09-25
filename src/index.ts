@@ -5,12 +5,10 @@ export interface Env {
   DB: D1Database;
   ECHO_KV: KVNamespace;
   CHAT_ROOM: DurableObjectNamespace;
-  // Agora espera uma JWK privada ou pública em formato JSON string no Cloudflare Secret
   JWK_SECRET: string;
-  JWK_PUBLIC?: string; // Opcional: Se quiser separar a chave pública
+  JWK_PUBLIC?: string;
 }
 
-// Helper para importar a Chave Privada (para assinar no Login)
 async function getPrivateKey(jwkString: string) {
   try {
     const jwk = JSON.parse(jwkString);
@@ -20,11 +18,9 @@ async function getPrivateKey(jwkString: string) {
   }
 }
 
-// Helper para importar a Chave Pública (para verificar nos Workers/DO)
 async function getPublicKey(jwkString: string) {
   try {
     const jwk = JSON.parse(jwkString);
-    // Remove o parâmetro 'd' se houver na JWK para garantir que seja tratada estritamente como pública
     const { d, ...publicKeyJwk } = jwk;
     return await importJWK(publicKeyJwk, "Ed25519");
   } catch (e) {
@@ -54,7 +50,6 @@ export default {
     const token = authHeader.split(" ")[1];
     let username = "";
     try {
-      // Utiliza a chave pública para validar o token com Ed25519 na Edge
       const pubKeyString = env.JWK_PUBLIC || env.JWK_SECRET;
       const publicKey = await getPublicKey(pubKeyString);
       const { payload } = await jwtVerify(token, publicKey);
@@ -105,10 +100,9 @@ async function handleLogin(request: Request, env: Env): Promise<Response> {
     const { username } = body;
     if (!username) return Response.json({ error: "Username obrigatório" }, { status: 400 });
 
-    // Assina o JWT utilizando a chave privada Ed25519
     const privateKey = await getPrivateKey(env.JWK_SECRET);
     const jwt = await new SignJWT({ username })
-      .setProtectedHeader({ alg: "EdDSA" }) // Algoritmo padrão para Ed25519 no jose
+      .setProtectedHeader({ alg: "EdDSA" })
       .setSubject(username)
       .setIssuedAt()
       .setExpirationTime("30d")
@@ -179,7 +173,6 @@ export class ChatRoom extends DurableObject {
   }
 }
 
-// --- UI COMPLETA (Skype UI + Tailwind + FontAwesome + IndexedDB Sem LocalStorage) ---
 function getEchoHtml(): string {
   return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -532,7 +525,7 @@ function getEchoHtml(): string {
       const div = document.createElement("div");
       div.className = "max-w-[75%] md:max-w-[60%] p-3 rounded-2xl text-sm leading-relaxed shadow-sm " + 
         (isOutgoing ? 'bg-[#0078d7] text-white self-end ml-auto rounded-br-none' : 'bg-white text-gray-800 self-start mr-auto border border-gray-200 rounded-bl-none');
-      div.innerHTML = `<div class="font-bold text-xs opacity-80 mb-0.5">${sender}</div><div>${content}</div>`;
+      div.innerHTML = '<div class="font-bold text-xs opacity-80 mb-0.5">' + sender + '</div><div>' + content + '</div>';
       container.appendChild(div);
       container.scrollTop = container.scrollHeight;
     }
