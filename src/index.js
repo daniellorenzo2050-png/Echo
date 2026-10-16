@@ -1,5 +1,5 @@
 // ==========================================
-// 1. DURABLE OBJECT: Gerenciador de Tempo Real (Likes & WebSockets)
+// 1. DURABLE OBJECT: Gerenciador de Tempo Real
 // ==========================================
 export class VideoRoom {
   constructor(state, env) {
@@ -74,8 +74,9 @@ export default {
 
     if (request.method === "OPTIONS") return new Response(null, { headers: cors });
 
-    if (url.pathname === "/" && request.method === "GET") {
-      return new Response(getHtmlPage(), {
+    // Rota Raiz obrigatória para entregar a interface do Castly
+    if (url.pathname === "/" || url.pathname === "") {
+      return new Response(getCastlyHtml(), {
         headers: { "Content-Type": "text/html;charset=UTF-8", ...cors }
       });
     }
@@ -143,9 +144,9 @@ export default {
 };
 
 // ==========================================
-// 3. FRONTEND INTEGRADO (Tailwind + Font Awesome + IndexedDB + Fullscreen)
+// 3. FRONTEND DO CASTLY (Tailwind + Tema + IndexedDB + Fullscreen)
 // ==========================================
-function getHtmlPage() {
+function getCastlyHtml() {
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -157,34 +158,27 @@ function getHtmlPage() {
   <script>
     tailwind.config = {
       darkMode: 'class',
-      theme: { extend: { colors: { darkbg: '#0f172a', cardbg: '#1e293b', lightcard: '#ffffff', accent: '#3b82f6' } } }
+      theme: { extend: { colors: { darkbg: '#0f172a', cardbg: '#1e293b', accent: '#3b82f6' } } }
     }
   </script>
 </head>
 <body class="bg-slate-50 dark:bg-darkbg text-slate-900 dark:text-slate-100 min-h-screen flex flex-col font-sans transition-colors duration-300">
 
-  <!-- Navbar -->
   <header class="sticky top-0 z-50 bg-white/80 dark:bg-darkbg/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex items-center justify-between">
     <div class="flex items-center space-x-3 cursor-pointer" onclick="window.location.href='/'">
       <i class="fa-solid fa-broadcast-tower text-2xl text-blue-500"></i>
       <span class="text-xl font-extrabold tracking-tight bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">Castly</span>
     </div>
-    
     <div class="flex items-center space-x-3">
-      <!-- Botão Dark / White Mode -->
-      <button onclick="toggleTheme()" class="p-2.5 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 transition text-slate-700 dark:text-slate-200 text-sm" title="Alternar Tema">
+      <button onclick="toggleTheme()" class="p-2.5 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 transition text-sm">
         <i id="theme-icon" class="fa-solid fa-moon"></i>
       </button>
-
-      <!-- Botão Home -->
       <a href="/" class="flex items-center space-x-2 px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 transition text-sm font-medium">
         <i class="fa-solid fa-house"></i>
-        <span class="hidden sm:inline">Home</span>
+        <span>Home</span>
       </a>
-
-      <!-- Perfil / Criar Canal -->
       <div id="user-profile-area">
-        <button onclick="openModal()" class="flex items-center space-x-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:opacity-90 transition text-sm font-semibold shadow-lg shadow-blue-500/20">
+        <button onclick="openModal()" class="flex items-center space-x-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:opacity-95 transition text-sm font-semibold shadow-lg shadow-blue-500/20">
           <i class="fa-solid fa-user-plus"></i>
           <span>Criar Canal</span>
         </button>
@@ -192,7 +186,6 @@ function getHtmlPage() {
     </div>
   </header>
 
-  <!-- Conteúdo Principal -->
   <main class="flex-1 max-w-7xl w-full mx-auto p-6">
     <div class="mb-8 flex items-center justify-between">
       <h1 class="text-2xl font-bold flex items-center space-x-3">
@@ -204,7 +197,6 @@ function getHtmlPage() {
       </span>
     </div>
 
-    <!-- Grid de Vídeos com Tela Cheia -->
     <div id="video-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
       <div class="bg-white dark:bg-cardbg rounded-2xl p-6 text-center text-slate-500 dark:text-slate-400 col-span-full shadow-md">
         Carregando vídeos do Castly...
@@ -212,7 +204,6 @@ function getHtmlPage() {
     </div>
   </main>
 
-  <!-- Modal Criar Canal -->
   <div id="channel-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
     <div class="bg-white dark:bg-cardbg border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl">
       <div class="flex justify-between items-center mb-4">
@@ -220,19 +211,19 @@ function getHtmlPage() {
           <i class="fa-solid fa-circle-user text-blue-500"></i>
           <span>Criar seu Canal no Castly</span>
         </h2>
-        <button onclick="closeModal()" class="text-slate-400 hover:text-slate-700 dark:hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+        <button onclick="closeModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
       </div>
-      <form id="channel-form" onsubmit="createChannel(event)" class="space-y-4">
+      <form onsubmit="createChannel(event)" class="space-y-4">
         <div>
           <label class="block text-xs text-slate-600 dark:text-slate-400 mb-1">Identificador (@)</label>
           <input type="text" id="username" required placeholder="@daniellorenzo" class="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500">
         </div>
         <div>
-          <label class="block text-xs text-slate-600 dark:text-slate-400 mb-1">Senha (Protegida por SHA-256)</label>
+          <label class="block text-xs text-slate-600 dark:text-slate-400 mb-1">Senha (SHA-256)</label>
           <input type="password" id="password" required placeholder="••••••••" class="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500">
         </div>
         <div>
-          <label class="block text-xs text-slate-600 dark:text-slate-400 mb-1">Foto de Perfil (Salva no IndexedDB e D1)</label>
+          <label class="block text-xs text-slate-600 dark:text-slate-400 mb-1">Foto de Perfil</label>
           <input type="file" id="avatar-file" accept="image/*" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500">
         </div>
         <button type="submit" class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 transition rounded-xl font-semibold text-sm shadow-lg shadow-blue-600/30 text-white">
@@ -243,21 +234,15 @@ function getHtmlPage() {
   </div>
 
   <script>
-    // ==========================================
-    // 3.1. INDEXEDDB (Relogin Automático e Tema)
-    // ==========================================
     const dbName = "CastlyDB";
     let db;
 
     function initIndexedDB() {
       return new Promise((resolve, reject) => {
-        const request = indexedDB.open(dbName, 1);
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => {
-          db = request.result;
-          resolve(db);
-        };
-        request.onupgradeneeded = (e) => {
+        const req = indexedDB.open(dbName, 1);
+        req.onerror = () => reject(req.error);
+        req.onsuccess = () => { db = req.result; resolve(db); };
+        req.onupgradeneeded = (e) => {
           const database = e.target.result;
           if (!database.objectStoreNames.contains("session")) {
             database.createObjectStore("session", { keyPath: "key" });
@@ -270,8 +255,7 @@ function getHtmlPage() {
       if (!db) await initIndexedDB();
       return new Promise((resolve, reject) => {
         const tx = db.transaction("session", "readwrite");
-        const store = tx.objectStore("session");
-        store.put({ key: "current_user", ...userData });
+        tx.objectStore("session").put({ key: "current_user", ...userData });
         tx.oncomplete = () => resolve(true);
         tx.onerror = () => reject(tx.error);
       });
@@ -281,8 +265,7 @@ function getHtmlPage() {
       if (!db) await initIndexedDB();
       return new Promise((resolve) => {
         const tx = db.transaction("session", "readonly");
-        const store = tx.objectStore("session");
-        const req = store.get("current_user");
+        const req = tx.objectStore("session").get("current_user");
         req.onsuccess = () => resolve(req.result);
         req.onerror = () => resolve(null);
       });
@@ -294,9 +277,6 @@ function getHtmlPage() {
       tx.objectStore("session").put({ key: "theme_mode", mode });
     }
 
-    // ==========================================
-    // 3.2. GERENCIAMENTO DE TEMA (Dark / White Mode Automático)
-    // ==========================================
     async function applyTheme(mode) {
       const html = document.documentElement;
       const icon = document.getElementById('theme-icon');
@@ -323,39 +303,22 @@ function getHtmlPage() {
         req.onsuccess = () => res(req.result ? req.result.mode : null);
         req.onerror = () => res(null);
       });
-
       if (savedTheme) {
         applyTheme(savedTheme);
       } else {
-        // Detectar automaticamente pelo sistema operacional
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        applyTheme(prefersDark ? 'dark' : 'light');
+        applyTheme(window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
       }
     }
 
-    // ==========================================
-    // 3.3. TELA CHEIA (Fullscreen Player)
-    // ==========================================
     function toggleFullscreen(containerId) {
       const container = document.getElementById(containerId);
       if (!document.fullscreenElement) {
-        if (container.requestFullscreen) {
-          container.requestFullscreen();
-        } else if (container.webkitRequestFullscreen) {
-          container.webkitRequestFullscreen();
-        }
+        if (container.requestFullscreen) container.requestFullscreen();
       } else {
-        if (document.exitFullscreen) {
-          document.exitFullscreen();
-        } else if (document.webkitExitFullscreen) {
-          document.webkitExitFullscreen();
-        }
+        if (document.exitFullscreen) document.exitFullscreen();
       }
     }
 
-    // ==========================================
-    // 3.4. FUNÇÕES DE UI E API
-    // ==========================================
     function openModal() { document.getElementById('channel-modal').classList.remove('hidden'); document.getElementById('channel-modal').classList.add('flex'); }
     function closeModal() { document.getElementById('channel-modal').classList.add('hidden'); document.getElementById('channel-modal').classList.remove('flex'); }
 
@@ -395,7 +358,7 @@ function getHtmlPage() {
           const avatar = v.avatar_base64 || 'https://via.placeholder.com/40';
           const containerId = \`video-box-\${index}\`;
           return \`
-            <div class="bg-white dark:bg-cardbg rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-700 transition shadow-xl group flex flex-col">
+            <div class="bg-white dark:bg-cardbg rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-xl flex flex-col">
               <div id="\${containerId}" class="aspect-video bg-black relative overflow-hidden flex items-center justify-center">
                 <video src="\${v.video_url}" class="w-full h-full object-cover" controls></video>
                 <button onclick="toggleFullscreen('\${containerId}')" class="absolute bottom-3 right-3 bg-black/60 hover:bg-black/80 text-white p-2 rounded-lg text-xs backdrop-blur-sm transition" title="Tela Cheia">
@@ -404,22 +367,18 @@ function getHtmlPage() {
               </div>
               <div class="p-4 flex space-x-3">
                 <div class="w-10 h-10 rounded-full bg-slate-300 dark:bg-slate-700 overflow-hidden flex-shrink-0">
-                  <img src="\${avatar}" alt="Avatar" class="w-full h-full object-cover">
+                  <img src="\${avatar}" class="w-full h-full object-cover">
                 </div>
                 <div>
                   <h3 class="font-semibold text-sm line-clamp-2">\${v.title}</h3>
                   <span class="text-xs text-slate-500 dark:text-slate-400 mt-1 block">\${v.username}</span>
-                  <div class="text-xs text-slate-400 dark:text-slate-500 mt-1 flex items-center space-x-2">
-                    <span>\${timeAgo}</span>
-                  </div>
+                  <div class="text-xs text-slate-400 dark:text-slate-500 mt-1">\${timeAgo}</div>
                 </div>
               </div>
             </div>
           \`;
         }).join('');
-      } catch(e) {
-        console.error(e);
-      }
+      } catch(e) { console.error(e); }
     }
 
     async function createChannel(e) {
@@ -444,9 +403,8 @@ function getHtmlPage() {
 
       const data = await res.json();
       if (data.success) {
-        // Salvar dados no IndexedDB para relogin automático
         await saveSessionToIDB({ username, password, avatar_base64 });
-        alert("Canal criado e sessão salva no IndexedDB com sucesso!");
+        alert("Canal criado e sessão salva no IndexedDB!");
         closeModal();
         checkAutoLogin();
       } else {
@@ -457,8 +415,7 @@ function getHtmlPage() {
     async function checkAutoLogin() {
       const session = await loadSessionFromIDB();
       if (session && session.username) {
-        const area = document.getElementById('user-profile-area');
-        area.innerHTML = \`
+        document.getElementById('user-profile-area').innerHTML = \`
           <div class="flex items-center space-x-2 bg-slate-200 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700">
             <div class="w-7 h-7 rounded-full overflow-hidden bg-slate-400">
               <img src="\${session.avatar_base64 || 'https://via.placeholder.com/30'}" class="w-full h-full object-cover">
@@ -469,7 +426,6 @@ function getHtmlPage() {
       }
     }
 
-    // Inicialização da Aplicação
     window.addEventListener('DOMContentLoaded', async () => {
       await setupAutoTheme();
       await initIndexedDB();
