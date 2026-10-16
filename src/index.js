@@ -74,14 +74,12 @@ export default {
 
     if (request.method === "OPTIONS") return new Response(null, { headers: cors });
 
-    // --- ROTA: Home / Interface Web Principal (/) ---
     if (url.pathname === "/" && request.method === "GET") {
       return new Response(getHtmlPage(), {
         headers: { "Content-Type": "text/html;charset=UTF-8", ...cors }
       });
     }
 
-    // --- ROTA: Registrar Canal (D1: @, Hash SHA-256, Avatar Base64 e Timestamp RFC 3306) ---
     if (url.pathname === "/api/register" && request.method === "POST") {
       try {
         const { username, password, avatar_base64 } = await request.json();
@@ -107,7 +105,6 @@ export default {
       }
     }
 
-    // --- ROTA: Feed de Vídeos (KV Cache + D1 como fonte) ---
     if (url.pathname === "/api/feed" && request.method === "GET") {
       const cacheKey = "castly_feed_cache";
       let cached = await env.CASTLY_KV.get(cacheKey);
@@ -126,7 +123,6 @@ export default {
       return new Response(payload, { headers: { "Content-Type": "application/json", "X-Cache": "MISS-D1", ...cors } });
     }
 
-    // --- ROTA: Durable Objects (Likes e WebSocket do Vídeo) ---
     if (url.pathname.startsWith("/api/video/")) {
       const match = url.pathname.match(/^\/api\/video\/([^\/]+)\/(.+)$/);
       if (!match) return new Response("Rota inválida", { status: 404 });
@@ -147,7 +143,7 @@ export default {
 };
 
 // ==========================================
-// 3. FRONTEND INTEGRADO (Tailwind + FontAwesome + IndexedDB + Theme Switcher)
+// 3. FRONTEND INTEGRADO (Tailwind + Font Awesome + IndexedDB + Fullscreen)
 // ==========================================
 function getHtmlPage() {
   return `<!DOCTYPE html>
@@ -161,11 +157,11 @@ function getHtmlPage() {
   <script>
     tailwind.config = {
       darkMode: 'class',
-      theme: { extend: { colors: { darkbg: '#0f172a', cardbg: '#1e293b', lightbg: '#f8fafc', lightcard: '#ffffff', accent: '#3b82f6' } } }
+      theme: { extend: { colors: { darkbg: '#0f172a', cardbg: '#1e293b', lightcard: '#ffffff', accent: '#3b82f6' } } }
     }
   </script>
 </head>
-<body class="bg-slate-100 dark:bg-darkbg text-slate-900 dark:text-slate-100 min-h-screen flex flex-col font-sans transition-colors duration-200">
+<body class="bg-slate-50 dark:bg-darkbg text-slate-900 dark:text-slate-100 min-h-screen flex flex-col font-sans transition-colors duration-300">
 
   <!-- Navbar -->
   <header class="sticky top-0 z-50 bg-white/80 dark:bg-darkbg/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex items-center justify-between">
@@ -173,20 +169,26 @@ function getHtmlPage() {
       <i class="fa-solid fa-broadcast-tower text-2xl text-blue-500"></i>
       <span class="text-xl font-extrabold tracking-tight bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">Castly</span>
     </div>
+    
     <div class="flex items-center space-x-3">
-      <!-- Botão Dark/Light Mode -->
-      <button onclick="toggleTheme()" id="theme-btn" class="p-2.5 rounded-xl bg-slate-200 dark:bg-slate-800 hover:opacity-80 transition text-sm">
+      <!-- Botão Dark / White Mode -->
+      <button onclick="toggleTheme()" class="p-2.5 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 transition text-slate-700 dark:text-slate-200 text-sm" title="Alternar Tema">
         <i id="theme-icon" class="fa-solid fa-moon"></i>
       </button>
 
-      <a href="/" class="flex items-center space-x-2 px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800 hover:opacity-80 transition text-sm font-medium">
+      <!-- Botão Home -->
+      <a href="/" class="flex items-center space-x-2 px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 transition text-sm font-medium">
         <i class="fa-solid fa-house"></i>
-        <span>Home</span>
+        <span class="hidden sm:inline">Home</span>
       </a>
-      <button onclick="openModal()" class="flex items-center space-x-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:opacity-90 transition text-sm font-semibold text-white shadow-lg shadow-blue-500/20">
-        <i class="fa-solid fa-user-plus"></i>
-        <span>Criar Canal</span>
-      </button>
+
+      <!-- Perfil / Criar Canal -->
+      <div id="user-profile-area">
+        <button onclick="openModal()" class="flex items-center space-x-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:opacity-90 transition text-sm font-semibold shadow-lg shadow-blue-500/20">
+          <i class="fa-solid fa-user-plus"></i>
+          <span>Criar Canal</span>
+        </button>
+      </div>
     </div>
   </header>
 
@@ -195,16 +197,16 @@ function getHtmlPage() {
     <div class="mb-8 flex items-center justify-between">
       <h1 class="text-2xl font-bold flex items-center space-x-3">
         <i class="fa-solid fa-fire text-orange-500"></i>
-        <span>Feed em Alta (D1 + KV + DO)</span>
+        <span>Feed em Alta</span>
       </h1>
       <span class="text-xs text-slate-600 dark:text-slate-400 bg-slate-200 dark:bg-slate-800 px-3 py-1.5 rounded-full border border-slate-300 dark:border-slate-700">
-        IndexedDB Auto-Session Ativo
+        IndexedDB + Edge Active
       </span>
     </div>
 
-    <!-- Grid de Vídeos -->
+    <!-- Grid de Vídeos com Tela Cheia -->
     <div id="video-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-      <div class="bg-white dark:bg-cardbg rounded-2xl p-6 text-center text-slate-500 dark:text-slate-400 col-span-full shadow">
+      <div class="bg-white dark:bg-cardbg rounded-2xl p-6 text-center text-slate-500 dark:text-slate-400 col-span-full shadow-md">
         Carregando vídeos do Castly...
       </div>
     </div>
@@ -218,23 +220,23 @@ function getHtmlPage() {
           <i class="fa-solid fa-circle-user text-blue-500"></i>
           <span>Criar seu Canal no Castly</span>
         </h2>
-        <button onclick="closeModal()" class="text-slate-400 hover:text-slate-900 dark:hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+        <button onclick="closeModal()" class="text-slate-400 hover:text-slate-700 dark:hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
       </div>
       <form id="channel-form" onsubmit="createChannel(event)" class="space-y-4">
         <div>
-          <label class="block text-xs text-slate-500 dark:text-slate-400 mb-1">Identificador (@)</label>
+          <label class="block text-xs text-slate-600 dark:text-slate-400 mb-1">Identificador (@)</label>
           <input type="text" id="username" required placeholder="@daniellorenzo" class="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500">
         </div>
         <div>
-          <label class="block text-xs text-slate-500 dark:text-slate-400 mb-1">Senha</label>
+          <label class="block text-xs text-slate-600 dark:text-slate-400 mb-1">Senha (Protegida por SHA-256)</label>
           <input type="password" id="password" required placeholder="••••••••" class="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500">
         </div>
         <div>
-          <label class="block text-xs text-slate-500 dark:text-slate-400 mb-1">Foto de Perfil (Base64)</label>
-          <input type="file" id="avatar-file" accept="image/*" class="w-full text-xs text-slate-500 dark:text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500">
+          <label class="block text-xs text-slate-600 dark:text-slate-400 mb-1">Foto de Perfil (Salva no IndexedDB e D1)</label>
+          <input type="file" id="avatar-file" accept="image/*" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500">
         </div>
-        <button type="submit" class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 transition rounded-xl font-semibold text-sm text-white shadow-lg shadow-blue-600/30">
-          Registrar no D1
+        <button type="submit" class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 transition rounded-xl font-semibold text-sm shadow-lg shadow-blue-600/30 text-white">
+          Registrar no D1 & Salvar Sessão
         </button>
       </form>
     </div>
@@ -242,79 +244,117 @@ function getHtmlPage() {
 
   <script>
     // ==========================================
-    // 3.1. INDEXEDDB PARA SESSÃO E TEMA
+    // 3.1. INDEXEDDB (Relogin Automático e Tema)
     // ==========================================
-    function openDB() {
+    const dbName = "CastlyDB";
+    let db;
+
+    function initIndexedDB() {
       return new Promise((resolve, reject) => {
-        const request = indexedDB.open("CastlyDB", 1);
-        request.onupgradeneeded = e => {
-          const db = e.target.result;
-          if (!db.objectStoreNames.contains("session")) {
-            db.createObjectStore("session", { keyPath: "id" });
+        const request = indexedDB.open(dbName, 1);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          db = request.result;
+          resolve(db);
+        };
+        request.onupgradeneeded = (e) => {
+          const database = e.target.result;
+          if (!database.objectStoreNames.contains("session")) {
+            database.createObjectStore("session", { keyPath: "key" });
           }
         };
-        request.onsuccess = e => resolve(e.target.result);
-        request.onerror = e => reject(e.target.error);
       });
     }
 
-    async function saveSessionToIDB(username, password, theme) {
-      const db = await openDB();
-      const tx = db.transaction("session", "readwrite");
-      const store = tx.objectStore("session");
-      store.put({ id: "current_user", username, password, theme });
+    async function saveSessionToIDB(userData) {
+      if (!db) await initIndexedDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction("session", "readwrite");
+        const store = tx.objectStore("session");
+        store.put({ key: "current_user", ...userData });
+        tx.oncomplete = () => resolve(true);
+        tx.onerror = () => reject(tx.error);
+      });
     }
 
     async function loadSessionFromIDB() {
-      const db = await openDB();
+      if (!db) await initIndexedDB();
       return new Promise((resolve) => {
         const tx = db.transaction("session", "readonly");
         const store = tx.objectStore("session");
         const req = store.get("current_user");
-        req.onsuccess = e => resolve(e.target.result);
+        req.onsuccess = () => resolve(req.result);
         req.onerror = () => resolve(null);
       });
     }
 
+    async function saveThemeToIDB(mode) {
+      if (!db) await initIndexedDB();
+      const tx = db.transaction("session", "readwrite");
+      tx.objectStore("session").put({ key: "theme_mode", mode });
+    }
+
     // ==========================================
-    // 3.2. GERENCIAMENTO DE TEMA (DARK / LIGHT)
+    // 3.2. GERENCIAMENTO DE TEMA (Dark / White Mode Automático)
     // ==========================================
-    async function applyTheme(theme) {
+    async function applyTheme(mode) {
       const html = document.documentElement;
       const icon = document.getElementById('theme-icon');
-      
-      if (theme === 'dark') {
+      if (mode === 'dark') {
         html.classList.add('dark');
-        if (icon) icon.className = "fa-solid fa-sun text-yellow-400";
+        if(icon) icon.className = "fa-solid fa-sun";
       } else {
         html.classList.remove('dark');
-        if (icon) icon.className = "fa-solid fa-moon text-slate-700";
+        if(icon) icon.className = "fa-solid fa-moon";
       }
+      await saveThemeToIDB(mode);
     }
 
     async function toggleTheme() {
-      const html = document.documentElement;
-      const currentTheme = html.classList.contains('dark') ? 'light' : 'dark';
-      applyTheme(currentTheme);
-      
-      const session = await loadSessionFromIDB() || {};
-      await saveSessionToIDB(session.username || "", session.password || "", currentTheme);
+      const isDark = document.documentElement.classList.contains('dark');
+      applyTheme(isDark ? 'light' : 'dark');
     }
 
-    // Inicializar Tema (Detecta automaticamente ou carrega do IndexedDB)
-    async function initTheme() {
-      const session = await loadSessionFromIDB();
-      if (session && session.theme) {
-        applyTheme(session.theme);
+    async function setupAutoTheme() {
+      await initIndexedDB();
+      const savedTheme = await new Promise((res) => {
+        const tx = db.transaction("session", "readonly");
+        const req = tx.objectStore("session").get("theme_mode");
+        req.onsuccess = () => res(req.result ? req.result.mode : null);
+        req.onerror = () => res(null);
+      });
+
+      if (savedTheme) {
+        applyTheme(savedTheme);
       } else {
-        // Detecção automática baseada no sistema operacional
+        // Detectar automaticamente pelo sistema operacional
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
         applyTheme(prefersDark ? 'dark' : 'light');
       }
     }
 
     // ==========================================
-    // 3.3. FUNÇÕES GERAIS DA INTERFACE
+    // 3.3. TELA CHEIA (Fullscreen Player)
+    // ==========================================
+    function toggleFullscreen(containerId) {
+      const container = document.getElementById(containerId);
+      if (!document.fullscreenElement) {
+        if (container.requestFullscreen) {
+          container.requestFullscreen();
+        } else if (container.webkitRequestFullscreen) {
+          container.webkitRequestFullscreen();
+        }
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+          document.webkitExitFullscreen();
+        }
+      }
+    }
+
+    // ==========================================
+    // 3.4. FUNÇÕES DE UI E API
     // ==========================================
     function openModal() { document.getElementById('channel-modal').classList.remove('hidden'); document.getElementById('channel-modal').classList.add('flex'); }
     function closeModal() { document.getElementById('channel-modal').classList.add('hidden'); document.getElementById('channel-modal').classList.remove('flex'); }
@@ -323,11 +363,9 @@ function getHtmlPage() {
       const now = new Date();
       const postedDate = new Date(postedAtTimestamp);
       const diffInSeconds = Math.floor((now - postedDate) / 1000);
-
       if (diffInSeconds < 5) return 'agora mesmo';
 
       const minute = 60, hour = minute * 60, day = hour * 24, week = day * 7, year = day * 365;
-
       if (diffInSeconds < minute) return \`\${diffInSeconds} \${diffInSeconds === 1 ? 'segundo' : 'segundos'}\`;
       const minutes = Math.floor(diffInSeconds / minute);
       if (diffInSeconds < hour) return \`\${minutes} \${minutes === 1 ? 'minuto' : 'minutos'}\`;
@@ -348,26 +386,30 @@ function getHtmlPage() {
         const grid = document.getElementById('video-grid');
 
         if (!videos || videos.length === 0) {
-          grid.innerHTML = \`<div class="bg-white dark:bg-cardbg rounded-2xl p-6 text-center text-slate-500 dark:text-slate-400 col-span-full shadow">Nenhum vídeo cadastrado ainda no Castly.</div>\`;
+          grid.innerHTML = \`<div class="bg-white dark:bg-cardbg rounded-2xl p-6 text-center text-slate-500 dark:text-slate-400 col-span-full shadow-md">Nenhum vídeo cadastrado ainda no Castly.</div>\`;
           return;
         }
 
-        grid.innerHTML = videos.map(v => {
+        grid.innerHTML = videos.map((v, index) => {
           const timeAgo = formatTimeAgo(v.posted_at);
           const avatar = v.avatar_base64 || 'https://via.placeholder.com/40';
+          const containerId = \`video-box-\${index}\`;
           return \`
-            <div class="bg-white dark:bg-cardbg rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition shadow-xl group">
-              <div class="aspect-video bg-slate-900 relative overflow-hidden flex items-center justify-center">
-                <i class="fa-solid fa-play text-4xl text-slate-600 group-hover:text-blue-500 transition"></i>
+            <div class="bg-white dark:bg-cardbg rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-700 transition shadow-xl group flex flex-col">
+              <div id="\${containerId}" class="aspect-video bg-black relative overflow-hidden flex items-center justify-center">
+                <video src="\${v.video_url}" class="w-full h-full object-cover" controls></video>
+                <button onclick="toggleFullscreen('\${containerId}')" class="absolute bottom-3 right-3 bg-black/60 hover:bg-black/80 text-white p-2 rounded-lg text-xs backdrop-blur-sm transition" title="Tela Cheia">
+                  <i class="fa-solid fa-expand"></i>
+                </button>
               </div>
               <div class="p-4 flex space-x-3">
-                <div class="w-10 h-10 rounded-full bg-slate-700 overflow-hidden flex-shrink-0">
+                <div class="w-10 h-10 rounded-full bg-slate-300 dark:bg-slate-700 overflow-hidden flex-shrink-0">
                   <img src="\${avatar}" alt="Avatar" class="w-full h-full object-cover">
                 </div>
                 <div>
                   <h3 class="font-semibold text-sm line-clamp-2">\${v.title}</h3>
                   <span class="text-xs text-slate-500 dark:text-slate-400 mt-1 block">\${v.username}</span>
-                  <div class="text-xs text-slate-400 dark:text-slate-500 mt-1">
+                  <div class="text-xs text-slate-400 dark:text-slate-500 mt-1 flex items-center space-x-2">
                     <span>\${timeAgo}</span>
                   </div>
                 </div>
@@ -402,27 +444,37 @@ function getHtmlPage() {
 
       const data = await res.json();
       if (data.success) {
-        // Salvar sessão e senha no IndexedDB para relogin automático
-        const currentTheme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
-        await saveSessionToIDB(username, password, currentTheme);
-
+        // Salvar dados no IndexedDB para relogin automático
+        await saveSessionToIDB({ username, password, avatar_base64 });
         alert("Canal criado e sessão salva no IndexedDB com sucesso!");
         closeModal();
+        checkAutoLogin();
       } else {
         alert(data.error || "Erro ao criar canal");
       }
     }
 
-    // Inicialização ao carregar a página
-    window.addEventListener('DOMContentLoaded', async () => {
-      await initTheme();
-      loadFeed();
-      
-      // Checar se há sessão salva no IndexedDB
+    async function checkAutoLogin() {
       const session = await loadSessionFromIDB();
       if (session && session.username) {
-        console.log("Sessão encontrada no IndexedDB para o usuário:", session.username);
+        const area = document.getElementById('user-profile-area');
+        area.innerHTML = \`
+          <div class="flex items-center space-x-2 bg-slate-200 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700">
+            <div class="w-7 h-7 rounded-full overflow-hidden bg-slate-400">
+              <img src="\${session.avatar_base64 || 'https://via.placeholder.com/30'}" class="w-full h-full object-cover">
+            </div>
+            <span class="text-xs font-semibold">\${session.username}</span>
+          </div>
+        \`;
       }
+    }
+
+    // Inicialização da Aplicação
+    window.addEventListener('DOMContentLoaded', async () => {
+      await setupAutoTheme();
+      await initIndexedDB();
+      await checkAutoLogin();
+      loadFeed();
     });
   </script>
 </body>
