@@ -1,24 +1,23 @@
 name = "castly"
 main = "src/index.js"
-compatibility_date = "2026-10-16"
+compatibility_date = "2026-03-01"
 
-# 1. Banco D1 para Contas, @, Senhas SHA-256, Fotos em Base64 e Timestamps RFC 3306
+[vars]
+ENVIRONMENT = "production"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "castly-db"
 database_id = "8750bb45-05e1-4df9-86ad-b2a1aa271d5e"
 
-# 2. KV para Cache ultrarrápido do feed e comentários
 [[kv_namespaces]]
 binding = "CASTLY_KV"
-id = "20ea50290b664a6db880d44584ba308a"
+id = "98e04f1695a747fa8cb77b835cc16f68"
 
-# 3. Durable Objects para Likes, Inscritos e WebSockets em tempo real por vídeo
-[durable_objects]
-bindings = [
-  { name = "VIDEO_ROOM", class_name = "VideoRoom" }
-]
+[[durable_objects.bindings]]
+name = "VIDEO_ROOM"
+class_name = "VideoRoom"
 
 [[migrations]]
 tag = "v1"
-new_classes = ["VideoRoom"]
+new_sqlite_classes = ["VideoRoom"]
