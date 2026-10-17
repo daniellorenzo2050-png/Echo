@@ -1,6 +1,6 @@
 // ============================================================================
 // CASTLY - CLOUDFLARE WORKER BACKEND (EDGE COMPUTING)
-// Integrado com PythonSL Account, D1, KV e HTML Embutido
+// Embutido com index.html completo, X-Frame-Options: DENY e PythonSL Account
 // ============================================================================
 
 export default {
@@ -9,78 +9,79 @@ export default {
     const path = url.pathname;
     const method = request.method;
 
-    // CORS Headers globais para o ecossistema
-    const corsHeaders = {
+    // Cabeçalhos de segurança globais e CORS (com X-Frame-Options DENY)
+    const securityHeaders = {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type, Authorization, X-PythonSL-Account",
+      "X-Frame-Options": "DENY",
+      "X-Content-Type-Options": "nosniff",
     };
 
     if (method === "OPTIONS") {
-      return new Response(null, { headers: corsHeaders });
+      return new Response(null, { headers: securityHeaders });
     }
 
     try {
       // ------------------------------------------------------------------------
-      // 1. ROTA PRINCIPAL: / (Serve a interface HTML do Castly embutida)
+      // 1. ROTA PRINCIPAL: / (HTML Embutido + PythonSL Account)
       // ------------------------------------------------------------------------
       if (path === "/") {
-        return handleCastlyPortal(request, env, corsHeaders);
+        return handleCastlyPortal(request, env, securityHeaders);
       }
 
       // ------------------------------------------------------------------------
-      // 2. API DE AUTENTICAÇÃO: PythonSL Account (/api/auth/register, /api/auth/login)
+      // 2. API DE AUTENTICAÇÃO: PythonSL Account
       // ------------------------------------------------------------------------
       if (path === "/api/auth/register" && method === "POST") {
-        return handleRegister(request, env, corsHeaders);
+        return handleRegister(request, env, securityHeaders);
       }
       if (path === "/api/auth/login" && method === "POST") {
-        return handleLogin(request, env, corsHeaders);
+        return handleLogin(request, env, securityHeaders);
       }
 
       // ------------------------------------------------------------------------
-      // 3. API DE VÍDEOS E STREAMING (/api/videos)
+      // 3. API DE VÍDEOS E STREAMING
       // ------------------------------------------------------------------------
       if (path === "/api/videos" && method === "GET") {
-        return handleGetVideos(env, corsHeaders);
+        return handleGetVideos(env, securityHeaders);
       }
       if (path === "/api/videos/upload" && method === "POST") {
-        return handleUploadVideo(request, env, corsHeaders);
+        return handleUploadVideo(request, env, securityHeaders);
       }
 
       // ------------------------------------------------------------------------
-      // 4. API DE MODERAÇÃO E BANIMENTOS (Regras Estritas de Segurança)
+      // 4. API DE MODERAÇÃO E BANIMENTOS
       // ------------------------------------------------------------------------
       if (path === "/api/moderate/ban" && method === "POST") {
-        return handleBanUser(request, env, corsHeaders);
+        return handleBanUser(request, env, securityHeaders);
       }
 
       // ------------------------------------------------------------------------
       // 5. API DE DIREITOS AUTORAIS (DMCA & Copyright Claims)
       // ------------------------------------------------------------------------
       if (path === "/api/dmca/claim" && method === "POST") {
-        return handleDMCAClaim(request, env, corsHeaders);
+        return handleDMCAClaim(request, env, securityHeaders);
       }
 
       return new Response(JSON.stringify({ error: "Endpoint não encontrado no Castly" }), {
         status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
+        headers: { ...securityHeaders, "Content-Type": "application/json" }
       });
 
     } catch (err) {
       return new Response(JSON.stringify({ error: err.message }), {
         status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
+        headers: { ...securityHeaders, "Content-Type": "application/json" }
       });
     }
   }
 };
 
 // ============================================================================
-// HTML EMBUTIDO & RENDERIZAÇÃO DO PORTAL
+// HTML EMBUTIDO DA INTERFACE (CASTLY PORTAL)
 // ============================================================================
-async function handleCastlyPortal(request, env, corsHeaders) {
-  // Inicialização automática do schema D1 se necessário
+async function handleCastlyPortal(request, env, headers) {
   await initializeDatabase(env);
 
   const html = `<!DOCTYPE html>
@@ -139,15 +140,15 @@ async function handleCastlyPortal(request, env, corsHeaders) {
 
             <!-- Feed de Vídeos -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="video-feed">
-                <!-- Conteúdo dinâmico carregado via script -->
+                <!-- Conteúdo dinâmico -->
             </div>
         </div>
 
-        <!-- Sidebar / Moderação & DMCA -->
+        <!-- Sidebar / DMCA & Painel -->
         <div class="space-y-6">
             <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-xl">
                 <h3 class="font-bold text-lg mb-3 flex items-center gap-2"><i class="fa-solid fa-shield-halved text-blue-500"></i> Segurança & Moderação</h3>
-                <p class="text-xs text-slate-400 mb-4">Plataforma protegida com restrições automáticas e suporte a DMCA integrado.</p>
+                <p class="text-xs text-slate-400 mb-4">Plataforma protegida com restrições automáticas e X-Frame-Options DENY ativado.</p>
                 <button onclick="openDmcaModal()" class="w-full bg-slate-700 hover:bg-slate-600 py-2 rounded-lg text-sm font-medium transition">Reivindicação DMCA</button>
             </div>
         </div>
@@ -177,9 +178,7 @@ async function handleCastlyPortal(request, env, corsHeaders) {
     </div>
 
     <script>
-        function toggleDarkMode() {
-            document.documentElement.classList.toggle('dark');
-        }
+        function toggleDarkMode() { document.documentElement.classList.toggle('dark'); }
         function openAuthModal() { document.getElementById('auth-modal').classList.remove('hidden'); }
         function closeAuthModal() { document.getElementById('auth-modal').classList.add('hidden'); }
 
@@ -214,37 +213,35 @@ async function handleCastlyPortal(request, env, corsHeaders) {
 </html>`;
 
   return new Response(html, {
-    headers: { ...corsHeaders, "Content-Type": "text/html;charset=UTF-8" }
+    headers: { ...headers, "Content-Type": "text/html;charset=UTF-8" }
   });
 }
 
 // ============================================================================
-// HANDLERS DE API (BACKEND WORKER)
+// HANDLERS DE API
 // ============================================================================
-async function handleRegister(request, env, corsHeaders) {
+async function handleRegister(request, env, headers) {
   const { email, handle, passwordHash, avatarBase64 } = await request.json();
   if (!email || !email.endsWith("@pythonsl.com")) {
     return new Response(JSON.stringify({ error: "O email deve pertencer ao domínio @pythonsl.com" }), {
-      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }
+      status: 400, headers: { ...headers, "Content-Type": "application/json" }
     });
   }
-
   try {
     await env.DB.prepare(
       "INSERT INTO accounts (email, handle, password_hash, avatar_base64) VALUES (?, ?, ?, ?)"
     ).bind(email, handle, passwordHash, avatarBase64 || "").run();
-
     return new Response(JSON.stringify({ success: true, message: "Conta criada com sucesso" }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" }
+      headers: { ...headers, "Content-Type": "application/json" }
     });
   } catch (e) {
-    return new Response(JSON.stringify({ error: "Conta já existente ou erro interno: " + e.message }), {
-      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }
+    return new Response(JSON.stringify({ error: "Erro ao criar conta: " + e.message }), {
+      status: 400, headers: { ...headers, "Content-Type": "application/json" }
     });
   }
 }
 
-async function handleLogin(request, env, corsHeaders) {
+async function handleLogin(request, env, headers) {
   const { email, passwordHash } = await request.json();
   const account = await env.DB.prepare(
     "SELECT * FROM accounts WHERE email = ? AND password_hash = ?"
@@ -252,64 +249,55 @@ async function handleLogin(request, env, corsHeaders) {
 
   if (!account) {
     return new Response(JSON.stringify({ error: "Credenciais inválidas ou conta não encontrada." }), {
-      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" }
+      status: 401, headers: { ...headers, "Content-Type": "application/json" }
     });
   }
-
   if (account.is_banned === 1) {
-    return new Response(JSON.stringify({ error: "Esta conta foi permanentemente banida por infração de segurança." }), {
-      status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" }
+    return new Response(JSON.stringify({ error: "Conta banida por infração de segurança." }), {
+      status: 403, headers: { ...headers, "Content-Type": "application/json" }
     });
   }
-
   return new Response(JSON.stringify({ success: true, email: account.email, handle: account.handle }), {
-    headers: { ...corsHeaders, "Content-Type": "application/json" }
+    headers: { ...headers, "Content-Type": "application/json" }
   });
 }
 
-async function handleGetVideos(env, corsHeaders) {
+async function handleGetVideos(env, headers) {
   const { results } = await env.DB.prepare("SELECT * FROM videos ORDER BY created_at DESC").all();
   return new Response(JSON.stringify(results || []), {
-    headers: { ...corsHeaders, "Content-Type": "application/json" }
+    headers: { ...headers, "Content-Type": "application/json" }
   });
 }
 
-async function handleUploadVideo(request, env, corsHeaders) {
+async function handleUploadVideo(request, env, headers) {
   const { title, description, videoUrl, authorHandle } = await request.json();
   await env.DB.prepare(
     "INSERT INTO videos (title, description, video_url, author_handle) VALUES (?, ?, ?, ?)"
   ).bind(title, description, videoUrl, authorHandle).run();
-
-  return new Response(JSON.stringify({ success: true, message: "Vídeo publicado com sucesso no Castly" }), {
-    headers: { ...corsHeaders, "Content-Type": "application/json" }
+  return new Response(JSON.stringify({ success: true, message: "Vídeo publicado" }), {
+    headers: { ...headers, "Content-Type": "application/json" }
   });
 }
 
-async function handleBanUser(request, env, corsHeaders) {
+async function handleBanUser(request, env, headers) {
   const { handle, reason } = await request.json();
   await env.DB.prepare("UPDATE accounts SET is_banned = 1 WHERE handle = ?").bind(handle).run();
-  
-  return new Response(JSON.stringify({ success: true, message: `Utilizador ${handle} banido permanentemente. Motivo: ${reason}` }), {
-    headers: { ...corsHeaders, "Content-Type": "application/json" }
+  return new Response(JSON.stringify({ success: true, message: `Utilizador ${handle} banido.` }), {
+    headers: { ...headers, "Content-Type": "application/json" }
   });
 }
 
-async function handleDMCAClaim(request, env, corsHeaders) {
+async function handleDMCAClaim(request, env, headers) {
   const { videoId, claimantEmail, justification } = await request.json();
   await env.DB.prepare(
     "INSERT INTO dmca_claims (video_id, claimant_email, justification) VALUES (?, ?, ?)"
   ).bind(videoId, claimantEmail, justification).run();
-
   await env.DB.prepare("DELETE FROM videos WHERE id = ?").bind(videoId).run();
-
-  return new Response(JSON.stringify({ success: true, message: "Reclamação DMCA registada e conteúdo removido preventivamente." }), {
-    headers: { ...corsHeaders, "Content-Type": "application/json" }
+  return new Response(JSON.stringify({ success: true, message: "Reclamação DMCA processada." }), {
+    headers: { ...headers, "Content-Type": "application/json" }
   });
 }
 
-// ============================================================================
-// D1 DATABASE SCHEMA EMUTIDO
-// ============================================================================
 async function initializeDatabase(env) {
   try {
     await env.DB.exec(`
@@ -322,7 +310,6 @@ async function initializeDatabase(env) {
         is_banned INTEGER DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
-
       CREATE TABLE IF NOT EXISTS videos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
@@ -331,7 +318,6 @@ async function initializeDatabase(env) {
         author_handle TEXT NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
-
       CREATE TABLE IF NOT EXISTS dmca_claims (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         video_id INTEGER,
@@ -341,7 +327,5 @@ async function initializeDatabase(env) {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     `);
-  } catch (e) {
-    // Ignora caso as tabelas já existam
-  }
+  } catch (e) {}
 }
