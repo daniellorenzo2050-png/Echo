@@ -1,6 +1,7 @@
 // ============================================================================
 // CASTLY - CLOUDFLARE WORKER BACKEND (EDGE COMPUTING)
-// Embutido com index.html completo, X-Frame-Options: DENY e PythonSL Account
+// Embutido com index.html completo, X-Frame-Options: DENY, PythonSL Account
+// e a Durable Object VideoRoom exportada.
 // ============================================================================
 
 export default {
@@ -77,6 +78,47 @@ export default {
     }
   }
 };
+
+// ============================================================================
+// DURABLE OBJECT: VideoRoom (Para WebSockets e Controlo de Likes em Tempo Real)
+// ============================================================================
+export class VideoRoom {
+  constructor(state, env) {
+    this.state = state;
+    this.env = env;
+  }
+
+  async fetch(request) {
+    const upgradeHeader = request.headers.get("Upgrade");
+    if (upgradeHeader !== "websocket") {
+      return new Response("Esperando conexão WebSocket", { status: 400 });
+    }
+
+    const pair = new WebSocketPair();
+    const [client, server] = Object.values(pair);
+
+    this.state.acceptWebSocket(server);
+
+    return new Response(null, {
+      status: 101,
+      webSocket: client,
+    });
+  }
+
+  async webSocketMessage(conn, message) {
+    broadcastToRoom(this.state, message);
+  }
+
+  async webSocketClose(conn, code, reason, wasClean) {
+    conn.close(code, reason);
+  }
+}
+
+function broadcastToRoom(state, message) {
+  for (const client of state.getWebSockets()) {
+    client.send(message);
+  }
+}
 
 // ============================================================================
 // HTML EMBUTIDO DA INTERFACE (CASTLY PORTAL)
