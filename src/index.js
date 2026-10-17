@@ -1,6 +1,6 @@
 // ============================================================================
 // CASTLY - CLOUDFLARE WORKER BACKEND (EDGE COMPUTING)
-// Integrado com PythonSL Account, D1, KV, e Durable Objects (WebSockets/Likes)
+// Integrado com PythonSL Account, D1, KV e HTML Embutido
 // ============================================================================
 
 export default {
@@ -22,7 +22,7 @@ export default {
 
     try {
       // ------------------------------------------------------------------------
-      // 1. ROTA PRINCIPAL: / (PythonSL Account & Interface Castly)
+      // 1. ROTA PRINCIPAL: / (Serve a interface HTML do Castly embutida)
       // ------------------------------------------------------------------------
       if (path === "/") {
         return handleCastlyPortal(request, env, corsHeaders);
@@ -77,10 +77,8 @@ export default {
 };
 
 // ============================================================================
-// HANDLERS E LÓGICA DE NEGÓCIO
+// HTML EMBUTIDO & RENDERIZAÇÃO DO PORTAL
 // ============================================================================
-
-// Renderiza a Interface Web Completa com Tailwind CSS, Font Awesome e PythonSL Account
 async function handleCastlyPortal(request, env, corsHeaders) {
   // Inicialização automática do schema D1 se necessário
   await initializeDatabase(env);
@@ -141,15 +139,15 @@ async function handleCastlyPortal(request, env, corsHeaders) {
 
             <!-- Feed de Vídeos -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="video-feed">
-                <!-- Vídeos dinâmicos injetados via script -->
+                <!-- Conteúdo dinâmico carregado via script -->
             </div>
         </div>
 
-        <!-- Sidebar / DMCA & Painel -->
+        <!-- Sidebar / Moderação & DMCA -->
         <div class="space-y-6">
             <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-xl">
                 <h3 class="font-bold text-lg mb-3 flex items-center gap-2"><i class="fa-solid fa-shield-halved text-blue-500"></i> Segurança & Moderação</h3>
-                <p class="text-xs text-slate-400 mb-4">Plataforma protegida com restrições automáticas para conteúdo impróprio (18+) e DMCA integrado.</p>
+                <p class="text-xs text-slate-400 mb-4">Plataforma protegida com restrições automáticas e suporte a DMCA integrado.</p>
                 <button onclick="openDmcaModal()" class="w-full bg-slate-700 hover:bg-slate-600 py-2 rounded-lg text-sm font-medium transition">Reivindicação DMCA</button>
             </div>
         </div>
@@ -191,7 +189,6 @@ async function handleCastlyPortal(request, env, corsHeaders) {
             const handle = document.getElementById('auth-handle').value;
             const password = document.getElementById('auth-password').value;
 
-            // Hash SHA-256 no client antes de enviar
             const msgBuffer = new TextEncoder().encode(password);
             const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
             const hashArray = Array.from(new Uint8Array(hashBuffer));
@@ -221,9 +218,9 @@ async function handleCastlyPortal(request, env, corsHeaders) {
   });
 }
 
-// ----------------------------------------------------------------------------
-// API: Registo e Login PythonSL Account
-// ----------------------------------------------------------------------------
+// ============================================================================
+// HANDLERS DE API (BACKEND WORKER)
+// ============================================================================
 async function handleRegister(request, env, corsHeaders) {
   const { email, handle, passwordHash, avatarBase64 } = await request.json();
   if (!email || !email.endsWith("@pythonsl.com")) {
@@ -254,7 +251,6 @@ async function handleLogin(request, env, corsHeaders) {
   ).bind(email, passwordHash).first();
 
   if (!account) {
-    // Tenta registar automaticamente se não existir para agilizar o fluxo do ecossistema
     return new Response(JSON.stringify({ error: "Credenciais inválidas ou conta não encontrada." }), {
       status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
@@ -271,9 +267,6 @@ async function handleLogin(request, env, corsHeaders) {
   });
 }
 
-// ----------------------------------------------------------------------------
-// API: Vídeos
-// ----------------------------------------------------------------------------
 async function handleGetVideos(env, corsHeaders) {
   const { results } = await env.DB.prepare("SELECT * FROM videos ORDER BY created_at DESC").all();
   return new Response(JSON.stringify(results || []), {
@@ -292,9 +285,6 @@ async function handleUploadVideo(request, env, corsHeaders) {
   });
 }
 
-// ----------------------------------------------------------------------------
-// API: Moderação e Banimento Automático (Infrações graves / 18+ / Intrusion)
-// ----------------------------------------------------------------------------
 async function handleBanUser(request, env, corsHeaders) {
   const { handle, reason } = await request.json();
   await env.DB.prepare("UPDATE accounts SET is_banned = 1 WHERE handle = ?").bind(handle).run();
@@ -304,16 +294,12 @@ async function handleBanUser(request, env, corsHeaders) {
   });
 }
 
-// ----------------------------------------------------------------------------
-// API: Gestão de DMCA e Copyright Claims
-// ----------------------------------------------------------------------------
 async function handleDMCAClaim(request, env, corsHeaders) {
   const { videoId, claimantEmail, justification } = await request.json();
   await env.DB.prepare(
     "INSERT INTO dmca_claims (video_id, claimant_email, justification) VALUES (?, ?, ?)"
   ).bind(videoId, claimantEmail, justification).run();
 
-  // Oculta o vídeo automaticamente após reclamação DMCA pendente de análise
   await env.DB.prepare("DELETE FROM videos WHERE id = ?").bind(videoId).run();
 
   return new Response(JSON.stringify({ success: true, message: "Reclamação DMCA registada e conteúdo removido preventivamente." }), {
@@ -322,7 +308,7 @@ async function handleDMCAClaim(request, env, corsHeaders) {
 }
 
 // ============================================================================
-// D1 DATABASE SCHEMA EMUTIDO (Criação automática de tabelas)
+// D1 DATABASE SCHEMA EMUTIDO
 // ============================================================================
 async function initializeDatabase(env) {
   try {
@@ -356,6 +342,6 @@ async function initializeDatabase(env) {
       );
     `);
   } catch (e) {
-    // Tabelas já criadas ou erro ignorado na inicialização
+    // Ignora caso as tabelas já existam
   }
 }
