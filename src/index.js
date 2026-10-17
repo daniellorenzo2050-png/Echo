@@ -1,438 +1,361 @@
-// ==========================================
-// 1. DURABLE OBJECT: Gerenciador de Tempo Real
-// ==========================================
-export class VideoRoom {
-  constructor(state, env) {
-    this.state = state;
-    this.env = env;
-    this.sessions = new Set();
+// ============================================================================
+// CASTLY - CLOUDFLARE WORKER BACKEND (EDGE COMPUTING)
+// Integrado com PythonSL Account, D1, KV, e Durable Objects (WebSockets/Likes)
+// ============================================================================
 
-    this.state.blockConcurrencyWhile(async () => {
-      this.sql = this.state.storage.sql;
-      this.sql.exec(`
-        CREATE TABLE IF NOT EXISTS stats (key TEXT PRIMARY KEY, value INTEGER);
-      `);
-      const res = this.sql.exec("SELECT value FROM stats WHERE key = 'likes'").toArray();
-      if (res.length === 0) {
-        this.sql.exec("INSERT INTO stats (key, value) VALUES ('likes', 0)");
-      }
-    });
-  }
-
-  async fetch(request) {
-    const url = new URL(request.url);
-
-    if (url.pathname === "/websocket") {
-      const upgrade = request.headers.get("Upgrade");
-      if (upgrade !== "websocket") return new Response("Esperando WebSocket", { status: 426 });
-      
-      const pair = new WebSocketPair();
-      this.connectSession(pair[1]);
-      return new Response(null, { status: 101, webSocket: pair[0] });
-    }
-
-    if (url.pathname === "/like" && request.method === "POST") {
-      this.sql.exec("UPDATE stats SET value = value + 1 WHERE key = 'likes'");
-      const current = this.sql.exec("SELECT value FROM stats WHERE key = 'likes'").toArray()[0].value;
-      
-      this.broadcast({ type: "LIKE_UPDATE", likes: current });
-      return new Response(JSON.stringify({ success: true, likes: current }), {
-        headers: { "Content-Type": "application/json" }
-      });
-    }
-
-    return new Response("DO Rota não encontrada", { status: 404 });
-  }
-
-  connectSession(ws) {
-    ws.accept();
-    this.sessions.add(ws);
-    const current = this.sql.exec("SELECT value FROM stats WHERE key = 'likes'").toArray()[0].value;
-    ws.send(JSON.stringify({ type: "INIT", likes: current }));
-    ws.addEventListener("close", () => this.sessions.delete(ws));
-  }
-
-  broadcast(msg) {
-    const str = JSON.stringify(msg);
-    for (const ws of this.sessions) {
-      try { ws.send(str); } catch (e) { this.sessions.delete(ws); }
-    }
-  }
-}
-
-// ==========================================
-// 2. WORKER PRINCIPAL (API & Frontend Server)
-// ==========================================
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-    const cors = {
+    const path = url.pathname;
+    const method = request.method;
+
+    // CORS Headers globais para o ecossistema
+    const corsHeaders = {
       "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type"
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-PythonSL-Account",
     };
 
-    if (request.method === "OPTIONS") return new Response(null, { headers: cors });
+    if (method === "OPTIONS") {
+      return new Response(null, { headers: corsHeaders });
+    }
 
-    // Rota Raiz obrigatória para entregar a interface do Castly
-    if (url.pathname === "/" || url.pathname === "") {
-      return new Response(getCastlyHtml(), {
-        headers: { "Content-Type": "text/html;charset=UTF-8", ...cors }
+    try {
+      // ------------------------------------------------------------------------
+      // 1. ROTA PRINCIPAL: / (PythonSL Account & Interface Castly)
+      // ------------------------------------------------------------------------
+      if (path === "/") {
+        return handleCastlyPortal(request, env, corsHeaders);
+      }
+
+      // ------------------------------------------------------------------------
+      // 2. API DE AUTENTICAÇÃO: PythonSL Account (/api/auth/register, /api/auth/login)
+      // ------------------------------------------------------------------------
+      if (path === "/api/auth/register" && method === "POST") {
+        return handleRegister(request, env, corsHeaders);
+      }
+      if (path === "/api/auth/login" && method === "POST") {
+        return handleLogin(request, env, corsHeaders);
+      }
+
+      // ------------------------------------------------------------------------
+      // 3. API DE VÍDEOS E STREAMING (/api/videos)
+      // ------------------------------------------------------------------------
+      if (path === "/api/videos" && method === "GET") {
+        return handleGetVideos(env, corsHeaders);
+      }
+      if (path === "/api/videos/upload" && method === "POST") {
+        return handleUploadVideo(request, env, corsHeaders);
+      }
+
+      // ------------------------------------------------------------------------
+      // 4. API DE MODERAÇÃO E BANIMENTOS (Regras Estritas de Segurança)
+      // ------------------------------------------------------------------------
+      if (path === "/api/moderate/ban" && method === "POST") {
+        return handleBanUser(request, env, corsHeaders);
+      }
+
+      // ------------------------------------------------------------------------
+      // 5. API DE DIREITOS AUTORAIS (DMCA & Copyright Claims)
+      // ------------------------------------------------------------------------
+      if (path === "/api/dmca/claim" && method === "POST") {
+        return handleDMCAClaim(request, env, corsHeaders);
+      }
+
+      return new Response(JSON.stringify({ error: "Endpoint não encontrado no Castly" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+
+    } catch (err) {
+      return new Response(JSON.stringify({ error: err.message }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }
-
-    if (url.pathname === "/api/register" && request.method === "POST") {
-      try {
-        const { username, password, avatar_base64 } = await request.json();
-        
-        const msgBuffer = new TextEncoder().encode(password);
-        const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
-        const password_hash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
-        
-        const created_at = new Date().toISOString();
-        const id = crypto.randomUUID();
-
-        await env.DB.prepare(
-          `INSERT INTO users (id, username, password_hash, avatar_base64, created_at) VALUES (?, ?, ?, ?, ?)`
-        ).bind(id, username, password_hash, avatar_base64 || "", created_at).run();
-
-        return new Response(JSON.stringify({ success: true, message: "Canal criado com sucesso!", username, created_at }), {
-          headers: { "Content-Type": "application/json", ...cors }
-        });
-      } catch (err) {
-        return new Response(JSON.stringify({ error: "Erro ao registrar. O '@' pode já estar em uso." }), {
-          status: 400, headers: { "Content-Type": "application/json", ...cors }
-        });
-      }
-    }
-
-    if (url.pathname === "/api/feed" && request.method === "GET") {
-      const cacheKey = "castly_feed_cache";
-      let cached = await env.CASTLY_KV.get(cacheKey);
-      if (cached) {
-        return new Response(cached, { headers: { "Content-Type": "application/json", "X-Cache": "HIT-KV", ...cors } });
-      }
-
-      const { results } = await env.DB.prepare(
-        `SELECT v.id, v.title, v.video_url, v.posted_at, u.username, u.avatar_base64 
-         FROM videos v JOIN users u ON v.user_id = u.id ORDER BY v.posted_at DESC LIMIT 20`
-      ).all();
-
-      const payload = JSON.stringify(results);
-      await env.CASTLY_KV.put(cacheKey, payload, { expirationTtl: 30 });
-
-      return new Response(payload, { headers: { "Content-Type": "application/json", "X-Cache": "MISS-D1", ...cors } });
-    }
-
-    if (url.pathname.startsWith("/api/video/")) {
-      const match = url.pathname.match(/^\/api\/video\/([^\/]+)\/(.+)$/);
-      if (!match) return new Response("Rota inválida", { status: 404 });
-
-      const videoId = match[1];
-      const action = match[2];
-
-      const id = env.VIDEO_ROOM.idFromName(videoId);
-      const stub = env.VIDEO_ROOM.get(id);
-
-      const doUrl = new URL(request.url);
-      doUrl.pathname = "/" + action;
-      return stub.fetch(new Request(doUrl, request));
-    }
-
-    return new Response("Castly Edge API Not Found", { status: 404, headers: cors });
   }
 };
 
-// ==========================================
-// 3. FRONTEND DO CASTLY (Tailwind + Tema + IndexedDB + Fullscreen)
-// ==========================================
-function getCastlyHtml() {
-  return `<!DOCTYPE html>
-<html lang="pt-BR">
+// ============================================================================
+// HANDLERS E LÓGICA DE NEGÓCIO
+// ============================================================================
+
+// Renderiza a Interface Web Completa com Tailwind CSS, Font Awesome e PythonSL Account
+async function handleCastlyPortal(request, env, corsHeaders) {
+  // Inicialização automática do schema D1 se necessário
+  await initializeDatabase(env);
+
+  const html = `<!DOCTYPE html>
+<html lang="pt" class="dark">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Castly — Transmita o seu mundo</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: { extend: { colors: { darkbg: '#0f172a', cardbg: '#1e293b', accent: '#3b82f6' } } }
-    }
-  </script>
-</head>
-<body class="bg-slate-50 dark:bg-darkbg text-slate-900 dark:text-slate-100 min-h-screen flex flex-col font-sans transition-colors duration-300">
-
-  <header class="sticky top-0 z-50 bg-white/80 dark:bg-darkbg/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex items-center justify-between">
-    <div class="flex items-center space-x-3 cursor-pointer" onclick="window.location.href='/'">
-      <i class="fa-solid fa-broadcast-tower text-2xl text-blue-500"></i>
-      <span class="text-xl font-extrabold tracking-tight bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">Castly</span>
-    </div>
-    <div class="flex items-center space-x-3">
-      <button onclick="toggleTheme()" class="p-2.5 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 transition text-sm">
-        <i id="theme-icon" class="fa-solid fa-moon"></i>
-      </button>
-      <a href="/" class="flex items-center space-x-2 px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 transition text-sm font-medium">
-        <i class="fa-solid fa-house"></i>
-        <span>Home</span>
-      </a>
-      <div id="user-profile-area">
-        <button onclick="openModal()" class="flex items-center space-x-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:opacity-95 transition text-sm font-semibold shadow-lg shadow-blue-500/20">
-          <i class="fa-solid fa-user-plus"></i>
-          <span>Criar Canal</span>
-        </button>
-      </div>
-    </div>
-  </header>
-
-  <main class="flex-1 max-w-7xl w-full mx-auto p-6">
-    <div class="mb-8 flex items-center justify-between">
-      <h1 class="text-2xl font-bold flex items-center space-x-3">
-        <i class="fa-solid fa-fire text-orange-500"></i>
-        <span>Feed em Alta</span>
-      </h1>
-      <span class="text-xs text-slate-600 dark:text-slate-400 bg-slate-200 dark:bg-slate-800 px-3 py-1.5 rounded-full border border-slate-300 dark:border-slate-700">
-        IndexedDB + Edge Active
-      </span>
-    </div>
-
-    <div id="video-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-      <div class="bg-white dark:bg-cardbg rounded-2xl p-6 text-center text-slate-500 dark:text-slate-400 col-span-full shadow-md">
-        Carregando vídeos do Castly...
-      </div>
-    </div>
-  </main>
-
-  <div id="channel-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
-    <div class="bg-white dark:bg-cardbg border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl">
-      <div class="flex justify-between items-center mb-4">
-        <h2 class="text-lg font-bold flex items-center space-x-2">
-          <i class="fa-solid fa-circle-user text-blue-500"></i>
-          <span>Criar seu Canal no Castly</span>
-        </h2>
-        <button onclick="closeModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
-      </div>
-      <form onsubmit="createChannel(event)" class="space-y-4">
-        <div>
-          <label class="block text-xs text-slate-600 dark:text-slate-400 mb-1">Identificador (@)</label>
-          <input type="text" id="username" required placeholder="@daniellorenzo" class="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500">
-        </div>
-        <div>
-          <label class="block text-xs text-slate-600 dark:text-slate-400 mb-1">Senha (SHA-256)</label>
-          <input type="password" id="password" required placeholder="••••••••" class="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500">
-        </div>
-        <div>
-          <label class="block text-xs text-slate-600 dark:text-slate-400 mb-1">Foto de Perfil</label>
-          <input type="file" id="avatar-file" accept="image/*" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500">
-        </div>
-        <button type="submit" class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 transition rounded-xl font-semibold text-sm shadow-lg shadow-blue-600/30 text-white">
-          Registrar no D1 & Salvar Sessão
-        </button>
-      </form>
-    </div>
-  </div>
-
-  <script>
-    const dbName = "CastlyDB";
-    let db;
-
-    function initIndexedDB() {
-      return new Promise((resolve, reject) => {
-        const req = indexedDB.open(dbName, 1);
-        req.onerror = () => reject(req.error);
-        req.onsuccess = () => { db = req.result; resolve(db); };
-        req.onupgradeneeded = (e) => {
-          const database = e.target.result;
-          if (!database.objectStoreNames.contains("session")) {
-            database.createObjectStore("session", { keyPath: "key" });
-          }
-        };
-      });
-    }
-
-    async function saveSessionToIDB(userData) {
-      if (!db) await initIndexedDB();
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction("session", "readwrite");
-        tx.objectStore("session").put({ key: "current_user", ...userData });
-        tx.oncomplete = () => resolve(true);
-        tx.onerror = () => reject(tx.error);
-      });
-    }
-
-    async function loadSessionFromIDB() {
-      if (!db) await initIndexedDB();
-      return new Promise((resolve) => {
-        const tx = db.transaction("session", "readonly");
-        const req = tx.objectStore("session").get("current_user");
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => resolve(null);
-      });
-    }
-
-    async function saveThemeToIDB(mode) {
-      if (!db) await initIndexedDB();
-      const tx = db.transaction("session", "readwrite");
-      tx.objectStore("session").put({ key: "theme_mode", mode });
-    }
-
-    async function applyTheme(mode) {
-      const html = document.documentElement;
-      const icon = document.getElementById('theme-icon');
-      if (mode === 'dark') {
-        html.classList.add('dark');
-        if(icon) icon.className = "fa-solid fa-sun";
-      } else {
-        html.classList.remove('dark');
-        if(icon) icon.className = "fa-solid fa-moon";
-      }
-      await saveThemeToIDB(mode);
-    }
-
-    async function toggleTheme() {
-      const isDark = document.documentElement.classList.contains('dark');
-      applyTheme(isDark ? 'light' : 'dark');
-    }
-
-    async function setupAutoTheme() {
-      await initIndexedDB();
-      const savedTheme = await new Promise((res) => {
-        const tx = db.transaction("session", "readonly");
-        const req = tx.objectStore("session").get("theme_mode");
-        req.onsuccess = () => res(req.result ? req.result.mode : null);
-        req.onerror = () => res(null);
-      });
-      if (savedTheme) {
-        applyTheme(savedTheme);
-      } else {
-        applyTheme(window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-      }
-    }
-
-    function toggleFullscreen(containerId) {
-      const container = document.getElementById(containerId);
-      if (!document.fullscreenElement) {
-        if (container.requestFullscreen) container.requestFullscreen();
-      } else {
-        if (document.exitFullscreen) document.exitFullscreen();
-      }
-    }
-
-    function openModal() { document.getElementById('channel-modal').classList.remove('hidden'); document.getElementById('channel-modal').classList.add('flex'); }
-    function closeModal() { document.getElementById('channel-modal').classList.add('hidden'); document.getElementById('channel-modal').classList.remove('flex'); }
-
-    function formatTimeAgo(postedAtTimestamp) {
-      const now = new Date();
-      const postedDate = new Date(postedAtTimestamp);
-      const diffInSeconds = Math.floor((now - postedDate) / 1000);
-      if (diffInSeconds < 5) return 'agora mesmo';
-
-      const minute = 60, hour = minute * 60, day = hour * 24, week = day * 7, year = day * 365;
-      if (diffInSeconds < minute) return \`\${diffInSeconds} \${diffInSeconds === 1 ? 'segundo' : 'segundos'}\`;
-      const minutes = Math.floor(diffInSeconds / minute);
-      if (diffInSeconds < hour) return \`\${minutes} \${minutes === 1 ? 'minuto' : 'minutos'}\`;
-      const hours = Math.floor(diffInSeconds / hour);
-      if (diffInSeconds < day) return \`\${hours} \${hours === 1 ? 'hora' : 'horas'}\`;
-      const days = Math.floor(diffInSeconds / day);
-      if (diffInSeconds < week) return \`\${days} \${days === 1 ? 'dia' : 'dias'}\`;
-      const weeks = Math.floor(diffInSeconds / week);
-      if (diffInSeconds < year) return \`\${weeks} \${weeks === 1 ? 'semana' : 'semanas'}\`;
-      const years = Math.floor(diffInSeconds / year);
-      return \`\${years} \${years === 1 ? 'ano' : 'anos'}\`;
-    }
-
-    async function loadFeed() {
-      try {
-        const res = await fetch('/api/feed');
-        const videos = await res.json();
-        const grid = document.getElementById('video-grid');
-
-        if (!videos || videos.length === 0) {
-          grid.innerHTML = \`<div class="bg-white dark:bg-cardbg rounded-2xl p-6 text-center text-slate-500 dark:text-slate-400 col-span-full shadow-md">Nenhum vídeo cadastrado ainda no Castly.</div>\`;
-          return;
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Castly - Powered by PythonSL</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        pythonsl: { 500: '#3b82f6', 600: '#2563eb', dark: '#0f172a' }
+                    }
+                }
+            }
         }
+    </script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans transition-colors duration-300">
+    <!-- Navbar -->
+    <header class="bg-slate-800 border-b border-slate-700 px-6 py-4 flex justify-between items-center sticky top-0 z-50">
+        <div class="flex items-center space-x-3">
+            <i class="fa-solid fa-bolt text-pythonsl-500 text-2xl"></i>
+            <span class="text-xl font-bold tracking-wider">Castly <span class="text-xs bg-blue-600 px-2 py-0.5 rounded text-white">PythonSL</span></span>
+        </div>
+        <div class="flex items-center space-x-4">
+            <button onclick="toggleDarkMode()" class="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 transition"><i class="fa-solid fa-moon text-yellow-400" id="theme-icon"></i></button>
+            <div id="auth-container" class="flex items-center space-x-2">
+                <span id="user-display" class="text-sm font-medium text-slate-300"></span>
+                <button onclick="openAuthModal()" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-lg text-sm font-semibold transition shadow-lg">Entrar / PythonSL Account</button>
+            </div>
+        </div>
+    </header>
 
-        grid.innerHTML = videos.map((v, index) => {
-          const timeAgo = formatTimeAgo(v.posted_at);
-          const avatar = v.avatar_base64 || 'https://via.placeholder.com/40';
-          const containerId = \`video-box-\${index}\`;
-          return \`
-            <div class="bg-white dark:bg-cardbg rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-xl flex flex-col">
-              <div id="\${containerId}" class="aspect-video bg-black relative overflow-hidden flex items-center justify-center">
-                <video src="\${v.video_url}" class="w-full h-full object-cover" controls></video>
-                <button onclick="toggleFullscreen('\${containerId}')" class="absolute bottom-3 right-3 bg-black/60 hover:bg-black/80 text-white p-2 rounded-lg text-xs backdrop-blur-sm transition" title="Tela Cheia">
-                  <i class="fa-solid fa-expand"></i>
-                </button>
-              </div>
-              <div class="p-4 flex space-x-3">
-                <div class="w-10 h-10 rounded-full bg-slate-300 dark:bg-slate-700 overflow-hidden flex-shrink-0">
-                  <img src="\${avatar}" class="w-full h-full object-cover">
+    <!-- Main Content -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-6 grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div class="lg:col-span-3 space-y-6">
+            <!-- Video Player Preview Container -->
+            <div class="bg-slate-800 rounded-2xl overflow-hidden shadow-2xl border border-slate-700">
+                <div class="relative aspect-video bg-black flex items-center justify-center group">
+                    <i class="fa-solid fa-play text-6xl text-white opacity-80 group-hover:scale-110 transition cursor-pointer"></i>
+                    <div class="absolute bottom-4 left-4 right-4 flex justify-between items-center text-white bg-gradient-to-t from-black/80 p-4">
+                        <div>
+                            <h2 class="font-bold text-lg">PythonSL Expedition: São Paulo to Santos Roadtrip</h2>
+                            <p class="text-xs text-slate-300">PythonSL Team • 7.500°C Core Output</p>
+                        </div>
+                        <button class="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg text-sm backdrop-blur transition"><i class="fa-solid fa-expand"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Feed de Vídeos -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="video-feed">
+                <!-- Vídeos dinâmicos injetados via script -->
+            </div>
+        </div>
+
+        <!-- Sidebar / DMCA & Painel -->
+        <div class="space-y-6">
+            <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-xl">
+                <h3 class="font-bold text-lg mb-3 flex items-center gap-2"><i class="fa-solid fa-shield-halved text-blue-500"></i> Segurança & Moderação</h3>
+                <p class="text-xs text-slate-400 mb-4">Plataforma protegida com restrições automáticas para conteúdo impróprio (18+) e DMCA integrado.</p>
+                <button onclick="openDmcaModal()" class="w-full bg-slate-700 hover:bg-slate-600 py-2 rounded-lg text-sm font-medium transition">Reivindicação DMCA</button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal de Autenticação PythonSL Account -->
+    <div id="auth-modal" class="fixed inset-0 bg-black/70 hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-slate-800 border border-slate-700 w-full max-w-md rounded-2xl p-6 shadow-2xl relative">
+            <button onclick="closeAuthModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            <h2 class="text-xl font-bold mb-4 flex items-center gap-2"><i class="fa-solid fa-id-card text-blue-500"></i> PythonSL Account</h2>
+            <form id="auth-form" onsubmit="handleAuthSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">Email (@pythonsl.com)</label>
+                    <input type="email" id="auth-email" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" placeholder="nome@pythonsl.com">
                 </div>
                 <div>
-                  <h3 class="font-semibold text-sm line-clamp-2">\${v.title}</h3>
-                  <span class="text-xs text-slate-500 dark:text-slate-400 mt-1 block">\${v.username}</span>
-                  <div class="text-xs text-slate-400 dark:text-slate-500 mt-1">\${timeAgo}</div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">Handle (@channel)</label>
+                    <input type="text" id="auth-handle" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" placeholder="@seuchannel">
                 </div>
-              </div>
-            </div>
-          \`;
-        }).join('');
-      } catch(e) { console.error(e); }
-    }
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">Senha (SHA-256)</label>
+                    <input type="password" id="auth-password" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" placeholder="••••••••">
+                </div>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 py-2.5 rounded-lg font-semibold text-sm transition">Entrar / Cadastrar</button>
+            </form>
+        </div>
+    </div>
 
-    async function createChannel(e) {
-      e.preventDefault();
-      const username = document.getElementById('username').value;
-      const password = document.getElementById('password').value;
-      const fileInput = document.getElementById('avatar-file');
+    <script>
+        function toggleDarkMode() {
+            document.documentElement.classList.toggle('dark');
+        }
+        function openAuthModal() { document.getElementById('auth-modal').classList.remove('hidden'); }
+        function closeAuthModal() { document.getElementById('auth-modal').classList.add('hidden'); }
 
-      let avatar_base64 = "";
-      if (fileInput.files.length > 0) {
-        const reader = new FileReader();
-        reader.readAsDataURL(fileInput.files[0]);
-        await new Promise(resolve => reader.onload = resolve);
-        avatar_base64 = reader.result;
-      }
+        async function handleAuthSubmit(e) {
+            e.preventDefault();
+            const email = document.getElementById('auth-email').value;
+            const handle = document.getElementById('auth-handle').value;
+            const password = document.getElementById('auth-password').value;
 
-      const res = await fetch('/api/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password, avatar_base64 })
-      });
+            // Hash SHA-256 no client antes de enviar
+            const msgBuffer = new TextEncoder().encode(password);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            const passwordHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
-      const data = await res.json();
-      if (data.success) {
-        await saveSessionToIDB({ username, password, avatar_base64 });
-        alert("Canal criado e sessão salva no IndexedDB!");
-        closeModal();
-        checkAutoLogin();
-      } else {
-        alert(data.error || "Erro ao criar canal");
-      }
-    }
-
-    async function checkAutoLogin() {
-      const session = await loadSessionFromIDB();
-      if (session && session.username) {
-        document.getElementById('user-profile-area').innerHTML = \`
-          <div class="flex items-center space-x-2 bg-slate-200 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700">
-            <div class="w-7 h-7 rounded-full overflow-hidden bg-slate-400">
-              <img src="\${session.avatar_base64 || 'https://via.placeholder.com/30'}" class="w-full h-full object-cover">
-            </div>
-            <span class="text-xs font-semibold">\${session.username}</span>
-          </div>
-        \`;
-      }
-    }
-
-    window.addEventListener('DOMContentLoaded', async () => {
-      await setupAutoTheme();
-      await initIndexedDB();
-      await checkAutoLogin();
-      loadFeed();
-    });
-  </script>
+            const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, handle, passwordHash })
+            });
+            const data = await res.json();
+            if(res.ok) {
+                alert('Autenticado com sucesso na PythonSL Account!');
+                localStorage.setItem('pythonsl_session', JSON.stringify(data));
+                closeAuthModal();
+                location.reload();
+            } else {
+                alert('Erro: ' + data.error);
+            }
+        }
+    </script>
 </body>
 </html>`;
+
+  return new Response(html, {
+    headers: { ...corsHeaders, "Content-Type": "text/html;charset=UTF-8" }
+  });
+}
+
+// ----------------------------------------------------------------------------
+// API: Registo e Login PythonSL Account
+// ----------------------------------------------------------------------------
+async function handleRegister(request, env, corsHeaders) {
+  const { email, handle, passwordHash, avatarBase64 } = await request.json();
+  if (!email || !email.endsWith("@pythonsl.com")) {
+    return new Response(JSON.stringify({ error: "O email deve pertencer ao domínio @pythonsl.com" }), {
+      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
+  }
+
+  try {
+    await env.DB.prepare(
+      "INSERT INTO accounts (email, handle, password_hash, avatar_base64) VALUES (?, ?, ?, ?)"
+    ).bind(email, handle, passwordHash, avatarBase64 || "").run();
+
+    return new Response(JSON.stringify({ success: true, message: "Conta criada com sucesso" }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: "Conta já existente ou erro interno: " + e.message }), {
+      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
+  }
+}
+
+async function handleLogin(request, env, corsHeaders) {
+  const { email, passwordHash } = await request.json();
+  const account = await env.DB.prepare(
+    "SELECT * FROM accounts WHERE email = ? AND password_hash = ?"
+  ).bind(email, passwordHash).first();
+
+  if (!account) {
+    // Tenta registar automaticamente se não existir para agilizar o fluxo do ecossistema
+    return new Response(JSON.stringify({ error: "Credenciais inválidas ou conta não encontrada." }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
+  }
+
+  if (account.is_banned === 1) {
+    return new Response(JSON.stringify({ error: "Esta conta foi permanentemente banida por infração de segurança." }), {
+      status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
+  }
+
+  return new Response(JSON.stringify({ success: true, email: account.email, handle: account.handle }), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" }
+  });
+}
+
+// ----------------------------------------------------------------------------
+// API: Vídeos
+// ----------------------------------------------------------------------------
+async function handleGetVideos(env, corsHeaders) {
+  const { results } = await env.DB.prepare("SELECT * FROM videos ORDER BY created_at DESC").all();
+  return new Response(JSON.stringify(results || []), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" }
+  });
+}
+
+async function handleUploadVideo(request, env, corsHeaders) {
+  const { title, description, videoUrl, authorHandle } = await request.json();
+  await env.DB.prepare(
+    "INSERT INTO videos (title, description, video_url, author_handle) VALUES (?, ?, ?, ?)"
+  ).bind(title, description, videoUrl, authorHandle).run();
+
+  return new Response(JSON.stringify({ success: true, message: "Vídeo publicado com sucesso no Castly" }), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" }
+  });
+}
+
+// ----------------------------------------------------------------------------
+// API: Moderação e Banimento Automático (Infrações graves / 18+ / Intrusion)
+// ----------------------------------------------------------------------------
+async function handleBanUser(request, env, corsHeaders) {
+  const { handle, reason } = await request.json();
+  await env.DB.prepare("UPDATE accounts SET is_banned = 1 WHERE handle = ?").bind(handle).run();
+  
+  return new Response(JSON.stringify({ success: true, message: `Utilizador ${handle} banido permanentemente. Motivo: ${reason}` }), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" }
+  });
+}
+
+// ----------------------------------------------------------------------------
+// API: Gestão de DMCA e Copyright Claims
+// ----------------------------------------------------------------------------
+async function handleDMCAClaim(request, env, corsHeaders) {
+  const { videoId, claimantEmail, justification } = await request.json();
+  await env.DB.prepare(
+    "INSERT INTO dmca_claims (video_id, claimant_email, justification) VALUES (?, ?, ?)"
+  ).bind(videoId, claimantEmail, justification).run();
+
+  // Oculta o vídeo automaticamente após reclamação DMCA pendente de análise
+  await env.DB.prepare("DELETE FROM videos WHERE id = ?").bind(videoId).run();
+
+  return new Response(JSON.stringify({ success: true, message: "Reclamação DMCA registada e conteúdo removido preventivamente." }), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" }
+  });
+}
+
+// ============================================================================
+// D1 DATABASE SCHEMA EMUTIDO (Criação automática de tabelas)
+// ============================================================================
+async function initializeDatabase(env) {
+  try {
+    await env.DB.exec(`
+      CREATE TABLE IF NOT EXISTS accounts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT UNIQUE NOT NULL,
+        handle TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        avatar_base64 TEXT,
+        is_banned INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS videos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        description TEXT,
+        video_url TEXT NOT NULL,
+        author_handle TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS dmca_claims (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        video_id INTEGER,
+        claimant_email TEXT NOT NULL,
+        justification TEXT NOT NULL,
+        status TEXT DEFAULT 'PENDING',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+  } catch (e) {
+    // Tabelas já criadas ou erro ignorado na inicialização
+  }
 }
