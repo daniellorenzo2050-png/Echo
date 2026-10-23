@@ -1,5 +1,5 @@
 // ============================================================================
-// TEMPLATE HTML / CSS / JS - LOJA PRINCIPAL COM UI ESTILO PS5 (/)
+// TEMPLATE HTML / CSS / JS - LOJA PRINCIPAL (/)
 // ============================================================================
 const HOME_PAGE = `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -7,154 +7,110 @@ const HOME_PAGE = `<!DOCTYPE html>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PythonSL GameShop - PS5 Edition</title>
-  <style>
-    :root {
-      --ps5-bg: #111418;
-      --ps5-blue: #0070d1;
-      --ps5-blue-hover: #005fb8;
-      --ps5-card-bg: rgba(26, 32, 44, 0.85);
-      --ps5-card-hover: rgba(45, 55, 72, 0.95);
-      --text-main: #f0f4f8;
-      --text-muted: #a0aec0;
-      --accent: #00f2fe;
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- SweetAlert2 CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ps5Bg: '#111418',
+            ps5Blue: '#0070d1',
+            ps5BlueHover: '#005fb8',
+            ps5Card: 'rgba(26, 32, 44, 0.85)',
+            ps5CardHover: 'rgba(45, 55, 72, 0.95)',
+          }
+        }
+      }
     }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
-    body { background-color: var(--ps5-bg); color: var(--text-main); min-height: 100vh; overflow-x: hidden; }
-
-    /* Estilo PS5 Header / StatusBar */
-    header {
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 20px 40px; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(20px);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08); position: sticky; top: 0; z-index: 100;
-    }
-    .logo-area { display: flex; align-items: center; gap: 15px; }
-    .logo-area h1 { font-size: 1.4em; letter-spacing: 1px; color: #fff; font-weight: 700; }
-    .user-profile { display: flex; gap: 20px; align-items: center; background: rgba(0, 0, 0, 0.4); padding: 8px 18px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.1); }
-    .badge-sl { background: var(--ps5-blue); color: #fff; padding: 5px 12px; border-radius: 20px; font-weight: bold; font-size: 0.85em; box-shadow: 0 0 10px rgba(0,112,209,0.5); }
-
-    /* Layout Principal Estilo Console */
-    .container { padding: 30px 40px; max-width: 1400px; margin: auto; }
-
-    /* Painel de Conta / Resgate Estilo Card Flutuante */
-    .ps5-card-section {
-      background: var(--ps5-card-bg); border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 16px; padding: 20px 25px; margin-bottom: 30px;
-      backdrop-filter: blur(15px); box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    }
-    .ps5-card-section h3 { margin-bottom: 12px; font-size: 1.1em; color: var(--accent); }
-    .auth-grid { display: flex; gap: 12px; flex-wrap: wrap; }
-    input, select {
-      flex: 1; min-width: 200px; padding: 12px 16px; background: rgba(15, 23, 42, 0.7);
-      border: 1px solid rgba(255,255,255,0.15); color: #fff; border-radius: 8px; outline: none; transition: 0.2s;
-    }
-    input:focus, select:focus { border-color: var(--ps5-blue); box-shadow: 0 0 8px rgba(0,112,209,0.4); }
-
-    /* Botões PS5 Style */
-    .btn-ps5 {
-      background: var(--ps5-blue); color: #fff; border: none; padding: 12px 24px;
-      border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-    }
-    .btn-ps5:hover { background: var(--ps5-blue-hover); transform: scale(1.02); }
-    .btn-play { background: #10b981; }
-    .btn-play:hover { background: #059669; }
-    .btn-delete { background: #ef4444; }
-    .btn-delete:hover { background: #dc2626; }
-    .btn-secondary { background: #334155; }
-    .btn-secondary:hover { background: #475569; }
-
-    /* Grid de Jogos (Carrossel / Grade Estilo PS Store) */
-    h2 { font-size: 1.6em; margin-bottom: 20px; font-weight: 500; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 25px; }
-    .game-card {
-      background: var(--ps5-card-bg); border-radius: 14px; border: 1px solid rgba(255,255,255,0.06);
-      overflow: hidden; display: flex; flex-direction: column; justify-content: space-between;
-      transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); padding: 20px;
-    }
-    .game-card:hover {
-      transform: translateY(-8px) scale(1.02);
-      border-color: var(--ps5-blue);
-      box-shadow: 0 15px 35px rgba(0, 112, 209, 0.3);
-      background: var(--ps5-card-hover);
-    }
-    .game-title { font-size: 1.25em; font-weight: bold; color: #fff; margin-bottom: 6px; }
-    .game-dev { color: var(--text-muted); font-size: 0.85em; margin-bottom: 12px; }
-    .game-price { font-size: 1.1em; font-weight: bold; color: var(--accent); margin-bottom: 15px; }
-
-    .card-actions { display: flex; flex-direction: column; gap: 8px; }
-
-    /* Player Overlay / Modal Estilo Tela Cheia PS5 */
-    #player-section {
-      background: rgba(10, 15, 25, 0.95); position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      z-index: 1000; padding: 40px; display: flex; flex-direction: column;
-    }
-    .player-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-    .player-wrapper { flex: 1; width: 100%; background: #000; border-radius: 12px; overflow: hidden; border: 2px solid rgba(255,255,255,0.1); }
-    iframe { width: 100%; height: 100%; border: none; background: #fff; }
-  </style>
+  </script>
 </head>
-<body>
+<body class="bg-ps5Bg text-slate-100 min-h-screen selection:bg-cyan-500 selection:text-black">
 
-  <!-- Barra Superior / Status PS5 -->
-  <header>
-    <div class="logo-area">
-      <span style="font-size: 1.8em;">🎮</span>
-      <h1>PythonSL GameShop <span style="font-size:0.5em; color:var(--ps5-blue); font-weight:bold; background:rgba(0,112,209,0.15); padding:4px 8px; border-radius:6px;">PS5 UI</span></h1>
+  <!-- Header / StatusBar -->
+  <header class="flex justify-between items-center px-10 py-5 bg-slate-900/60 backdrop-blur-xl border-b border-white/10 sticky top-0 z-50">
+    <div class="flex items-center gap-3">
+      <i class="fa-solid fa-gamepad text-2xl text-cyan-400"></i>
+      <h1 class="text-xl font-bold tracking-wide">PythonSL GameShop <span class="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-1 rounded-md ml-2 border border-cyan-500/30">PS5 UI</span></h1>
     </div>
-    <div class="user-profile">
-      <span id="user-display" style="color: var(--text-muted);">Visitante</span>
-      <span class="badge-sl" id="balance-display">SL$ 0</span>
-      <a href="/dev/" class="btn-ps5" style="padding: 6px 14px; font-size: 0.85em; background: #10b981;">Painel Dev</a>
+    <div class="flex items-center gap-4 bg-black/40 px-5 py-2 rounded-full border border-white/10">
+      <span id="user-display" class="text-slate-400 text-sm"><i class="fa-solid fa-user mr-1.5"></i> Visitante</span>
+      <span id="balance-display" class="bg-ps5Blue text-white px-3 py-1 rounded-full font-bold text-xs shadow-lg shadow-blue-500/30">SL$ 0</span>
+      <a href="/dev/" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+        <i class="fa-solid fa-code"></i> Painel Dev
+      </a>
     </div>
   </header>
 
-  <div class="container">
+  <main class="max-w-7xl mx-auto p-8 space-y-8">
 
-    <!-- Seção de Conta e Resgate -->
-    <div class="ps5-card-section">
-      <h3>🔐 PythonSL Account & Resgate de Vonder</h3>
-      <div class="auth-grid" style="margin-top: 12px;">
-        <input type="text" id="username" placeholder="Usuário PythonSL">
-        <input type="password" id="password" placeholder="Senha SHA256">
-        <input type="text" id="redeem-code" placeholder="Código Vonder (ex: STATER2016)">
-        <button class="btn-ps5" onclick="redeem()">Conectar / Resgatar</button>
+    <!-- Seção de Conta & Vonder -->
+    <section class="bg-slate-900/70 border border-white/10 rounded-2xl p-6 backdrop-blur-md shadow-2xl">
+      <h3 class="text-cyan-400 font-semibold mb-3 flex items-center gap-2">
+        <i class="fa-solid fa-key"></i> PythonSL Account & Resgate de Vonder
+      </h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <input type="text" id="username" placeholder="Usuário PythonSL" class="bg-slate-950/70 border border-white/15 px-4 py-3 rounded-xl focus:outline-none focus:border-ps5Blue focus:ring-2 focus:ring-ps5Blue/40 transition">
+        <input type="password" id="password" placeholder="Senha SHA256" class="bg-slate-950/70 border border-white/15 px-4 py-3 rounded-xl focus:outline-none focus:border-ps5Blue focus:ring-2 focus:ring-ps5Blue/40 transition">
+        <input type="text" id="redeem-code" placeholder="Código Vonder (ex: STATER2016)" class="bg-slate-950/70 border border-white/15 px-4 py-3 rounded-xl focus:outline-none focus:border-ps5Blue focus:ring-2 focus:ring-ps5Blue/40 transition">
+        <button onclick="redeem()" class="bg-ps5Blue hover:bg-ps5BlueHover text-white font-bold px-6 py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-blue-600/30">
+          <i class="fa-solid fa-right-to-bracket"></i> Conectar / Resgatar
+        </button>
       </div>
-    </div>
+    </section>
 
-    <!-- Barra de Busca Avançada -->
-    <div class="ps5-card-section">
-      <h3>🔍 Pesquisar na Store</h3>
-      <div class="auth-grid" style="margin-top: 12px;">
-        <input type="text" id="search-query" placeholder="Nome do jogo, desenvolvedor, UUID ou Hash..." oninput="filterGames()" style="flex: 2;">
-        <select id="search-price-filter" onchange="filterGames()">
+    <!-- Barra de Pesquisa Avançada -->
+    <section class="bg-slate-900/70 border border-white/10 rounded-2xl p-6 backdrop-blur-md shadow-2xl">
+      <h3 class="text-cyan-400 font-semibold mb-3 flex items-center gap-2">
+        <i class="fa-solid fa-magnifying-glass"></i> Pesquisar na Store
+      </h3>
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <input type="text" id="search-query" placeholder="Nome, dev, UUID ou Hash..." oninput="filterGames()" class="md:col-span-2 bg-slate-950/70 border border-white/15 px-4 py-3 rounded-xl focus:outline-none focus:border-ps5Blue focus:ring-2 focus:ring-ps5Blue/40 transition">
+        <select id="search-price-filter" onchange="filterGames()" class="bg-slate-950/70 border border-white/15 px-4 py-3 rounded-xl focus:outline-none focus:border-ps5Blue">
           <option value="all">Todos os Preços</option>
           <option value="free">Grátis (SL$ 0)</option>
           <option value="paid">Pagos (SL$ > 0)</option>
         </select>
-        <select id="search-sort" onchange="filterGames()">
-          <option value="newest">Mais Recentes</option>
-          <option value="price-asc">Menor Preço</option>
-          <option value="price-desc">Maior Preço</option>
-          <option value="title">Nome (A-Z)</option>
-        </select>
-        <button class="btn-ps5 btn-secondary" onclick="resetSearch()">Limpar</button>
+        <div class="flex gap-2">
+          <select id="search-sort" onchange="filterGames()" class="w-full bg-slate-950/70 border border-white/15 px-3 py-3 rounded-xl focus:outline-none focus:border-ps5Blue">
+            <option value="newest">Mais Recentes</option>
+            <option value="price-asc">Menor Preço</option>
+            <option value="price-desc">Maior Preço</option>
+            <option value="title">Nome (A-Z)</option>
+          </select>
+          <button onclick="resetSearch()" class="bg-slate-700 hover:bg-slate-600 px-4 py-3 rounded-xl transition text-white" title="Limpar Filtros">
+            <i class="fa-solid fa-rotate-right"></i>
+          </button>
+        </div>
       </div>
+    </section>
+
+    <!-- Catálogo de Jogos -->
+    <div>
+      <h2 class="text-2xl font-light mb-6 flex items-center gap-2.5">
+        <i class="fa-solid fa-store text-cyan-400"></i> Biblioteca & Jogos Disponíveis
+      </h2>
+      <div id="games-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
     </div>
 
-    <!-- Catálogo -->
-    <h2>🎮 Biblioteca & Jogos Disponíveis</h2>
-    <div class="grid" id="games-list" style="margin-top: 20px;"></div>
-
-  </div>
+  </main>
 
   <!-- Player de Jogo (Fullscreen PS5 Modal) -->
-  <div id="player-section" style="display:none;">
-    <div class="player-header">
-      <h2 id="playing-title" style="margin:0;">🕹️ Rodando Jogo</h2>
-      <button class="btn-ps5 btn-delete" onclick="closePlayer()">Sair do Jogo (✕)</button>
+  <div id="player-section" class="fixed inset-0 bg-slate-950/95 z-50 p-8 flex-col hidden backdrop-blur-2xl">
+    <div class="flex justify-between items-center mb-4">
+      <h3 id="playing-title" class="text-xl font-semibold flex items-center gap-2">
+        <i class="fa-solid fa-play text-emerald-400"></i> Rodando Jogo
+      </h3>
+      <button onclick="closePlayer()" class="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-xl font-bold transition flex items-center gap-2 shadow-lg shadow-red-600/30">
+        <i class="fa-solid fa-xmark"></i> Sair do Jogo
+      </button>
     </div>
-    <div class="player-wrapper">
-      <iframe id="game-frame" sandbox="allow-scripts allow-same-origin allow-modals"></iframe>
+    <div class="flex-1 w-full bg-black rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
+      <iframe id="game-frame" sandbox="allow-scripts allow-same-origin allow-modals" class="w-full h-full bg-white"></iframe>
     </div>
   </div>
 
@@ -177,7 +133,9 @@ const HOME_PAGE = `<!DOCTYPE html>
       const pass = document.getElementById('password').value;
       const code = document.getElementById('redeem-code').value.trim();
 
-      if (!user || !pass) return alert("Preencha seu usuário e senha da PythonSL Account!");
+      if (!user || !pass) {
+        return Swal.fire({ icon: 'warning', title: 'Atenção', text: 'Preencha seu usuário e senha da PythonSL Account!', background: '#1e293b', color: '#fff' });
+      }
 
       const res = await fetch('/api/reedem/', {
         method: 'POST',
@@ -185,9 +143,12 @@ const HOME_PAGE = `<!DOCTYPE html>
         body: JSON.stringify({ user, pass, code })
       });
       const data = await res.json();
-      alert(data.message || data.error);
-      if (res.ok) {
-        document.getElementById('user-display').innerText = user;
+      
+      if (!res.ok) {
+        Swal.fire({ icon: 'error', title: 'Erro', text: data.error, background: '#1e293b', color: '#fff' });
+      } else {
+        Swal.fire({ icon: 'success', title: 'Sucesso!', text: data.message, background: '#1e293b', color: '#fff', timer: 2000, showConfirmButton: false });
+        document.getElementById('user-display').innerHTML = '<i class="fa-solid fa-user mr-1.5"></i> ' + user;
         document.getElementById('balance-display').innerText = 'SL$ ' + data.new_balance;
         filterGames();
       }
@@ -240,23 +201,27 @@ const HOME_PAGE = `<!DOCTYPE html>
       const container = document.getElementById('games-list');
       container.innerHTML = '';
       if (games.length === 0) {
-        container.innerHTML = '<p style="color: var(--text-muted); grid-column: 1/-1;">Nenhum jogo encontrado na Store.</p>';
+        container.innerHTML = '<p class="text-slate-500 col-span-full text-center py-12"><i class="fa-solid fa-ghost text-4xl mb-3 block"></i> Nenhum jogo encontrado na Store.</p>';
         return;
       }
       games.forEach(game => {
         const isOwner = currentUser && currentUser === game.developer;
         const card = document.createElement('div');
-        card.className = 'game-card';
+        card.className = 'bg-slate-900/80 border border-white/5 rounded-2xl p-5 flex flex-col justify-between transition-all duration-300 hover:-translate-y-2 hover:border-ps5Blue hover:shadow-2xl hover:shadow-blue-500/20 hover:bg-slate-800/90';
         card.innerHTML = \`
           <div>
-            <div class="game-title">\${game.title}</div>
-            <div class="game-dev">Dev: \${game.developer}</div>
-            <div class="game-price">SL$ \${game.price}</div>
+            <h3 class="text-lg font-bold text-white mb-1">\${game.title}</h3>
+            <p class="text-slate-400 text-xs mb-4"><i class="fa-solid fa-code-merge mr-1"></i> Dev: \${game.developer}</p>
+            <p class="text-cyan-400 font-bold text-base mb-4"><i class="fa-solid fa-coins mr-1"></i> SL$ \${game.price}</p>
           </div>
-          <div class="card-actions">
-            <button class="btn-ps5" onclick="buyAndInstall('\${game.uuid}')">📥 Baixar / Instalar</button>
-            <button class="btn-ps5 btn-play" onclick="playGame('\${game.uuid}', '\${game.title}')">▶️ Play</button>
-            \${isOwner ? \`<button class="btn-ps5 btn-delete" onclick="deleteGame('\${game.uuid}')">🗑️ Excluir Jogo</button>\` : ''}
+          <div class="flex flex-col gap-2">
+            <button onclick="buyAndInstall('\${game.uuid}')" class="bg-ps5Blue hover:bg-ps5BlueHover text-white text-sm font-semibold py-2.5 px-4 rounded-xl transition flex items-center justify-center gap-2">
+              <i class="fa-solid fa-download"></i> Baixar / Instalar
+            </button>
+            <button onclick="playGame('\${game.uuid}', '\${game.title}')" class="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold py-2.5 px-4 rounded-xl transition flex items-center justify-center gap-2">
+              <i class="fa-solid fa-play"></i> Play
+            </button>
+            \${isOwner ? \`<button onclick="deleteGame('\${game.uuid}')" class="bg-red-600/80 hover:bg-red-600 text-white text-xs font-semibold py-2 px-4 rounded-xl transition flex items-center justify-center gap-2 mt-1"><i class="fa-solid fa-trash"></i> Excluir Jogo</button>\` : ''}
           </div>
         \`;
         container.appendChild(card);
@@ -265,7 +230,9 @@ const HOME_PAGE = `<!DOCTYPE html>
 
     async function buyAndInstall(uuid) {
       const user = document.getElementById('username').value.trim();
-      if (!user) return alert("É necessário conectar sua PythonSL Account no topo para instalar jogos!");
+      if (!user) {
+        return Swal.fire({ icon: 'warning', title: 'Conta Necessária', text: 'Conecte sua PythonSL Account no topo para instalar jogos!', background: '#1e293b', color: '#fff' });
+      }
 
       const costRes = await fetch('/api/costmoney', {
         method: 'POST',
@@ -273,26 +240,48 @@ const HOME_PAGE = `<!DOCTYPE html>
         body: JSON.stringify({ user, game_uuid: uuid })
       });
       const costData = await costRes.json();
-      if (!costRes.ok) return alert("Erro na compra: " + (costData.error || "Saldo insuficiente"));
+      if (!costRes.ok) {
+        return Swal.fire({ icon: 'error', title: 'Falha na Instalação', text: costData.error || 'Saldo insuficiente', background: '#1e293b', color: '#fff' });
+      }
 
       document.getElementById('balance-display').innerText = 'SL$ ' + costData.new_balance;
 
       const dlRes = await fetch('/download/' + uuid);
-      if (!dlRes.ok) return alert("Erro ao baixar o jogo do servidor.");
+      if (!dlRes.ok) {
+        return Swal.fire({ icon: 'error', title: 'Erro', text: 'Erro ao baixar o jogo do servidor.', background: '#1e293b', color: '#fff' });
+      }
       const htmlContent = await dlRes.text();
 
       const tx = db.transaction(["games"], "readwrite");
       const store = tx.objectStore("games");
       store.put({ uuid, content: htmlContent, updatedAt: new Date().toISOString() });
 
-      tx.oncomplete = () => alert("Jogo instalado com sucesso no IndexedDB!");
+      tx.oncomplete = () => {
+        Swal.fire({ icon: 'success', title: 'Instalado!', text: 'Jogo salvo com sucesso no IndexedDB!', background: '#1e293b', color: '#fff', timer: 2000, showConfirmButton: false });
+      };
     }
 
     async function deleteGame(uuid) {
       const user = document.getElementById('username').value.trim();
       const pass = document.getElementById('password').value;
-      if (!user || !pass) return alert("Digite seu usuário e senha!");
-      if (!confirm("Deseja realmente deletar este jogo permanentemente?")) return;
+      if (!user || !pass) {
+        return Swal.fire({ icon: 'warning', title: 'Autenticação', text: 'Digite seu usuário e senha!', background: '#1e293b', color: '#fff' });
+      }
+
+      const confirmResult = await Swal.fire({
+        title: 'Tem certeza?',
+        text: "Deseja realmente deletar este jogo permanentemente?",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#334155',
+        confirmButtonText: 'Sim, deletar',
+        cancelButtonText: 'Cancelar',
+        background: '#1e293b',
+        color: '#fff'
+      });
+
+      if (!confirmResult.isConfirmed) return;
 
       const res = await fetch('/api/deletegame', {
         method: 'POST',
@@ -300,8 +289,13 @@ const HOME_PAGE = `<!DOCTYPE html>
         body: JSON.stringify({ user, pass, game_uuid: uuid })
       });
       const data = await res.json();
-      alert(data.message || data.error);
-      if (res.ok) loadGames();
+      
+      if (!res.ok) {
+        Swal.fire({ icon: 'error', title: 'Erro', text: data.error, background: '#1e293b', color: '#fff' });
+      } else {
+        Swal.fire({ icon: 'success', title: 'Deletado', text: data.message, background: '#1e293b', color: '#fff', timer: 2000, showConfirmButton: false });
+        loadGames();
+      }
     }
 
     function playGame(uuid, title) {
@@ -311,20 +305,27 @@ const HOME_PAGE = `<!DOCTYPE html>
 
       getReq.onsuccess = () => {
         const record = getReq.result;
-        if (!record) return alert("Jogo não encontrado no IndexedDB! Instale o jogo primeiro.");
+        if (!record) {
+          return Swal.fire({ icon: 'info', title: 'Não instalado', text: 'Instale o jogo clicando em "Baixar / Instalar" primeiro!', background: '#1e293b', color: '#fff' });
+        }
 
         if (currentBlobUrl) URL.revokeObjectURL(currentBlobUrl);
         const blob = new Blob([record.content], { type: 'text/html;charset=utf-8' });
         currentBlobUrl = URL.createObjectURL(blob);
 
-        document.getElementById('playing-title').innerText = '🕹️ Rodando: ' + title;
+        document.getElementById('playing-title').innerHTML = '<i class="fa-solid fa-play text-emerald-400"></i> Rodando: ' + title;
         document.getElementById('game-frame').src = currentBlobUrl;
-        document.getElementById('player-section').style.display = 'flex';
+        
+        const playerSec = document.getElementById('player-section');
+        playerSec.classList.remove('hidden');
+        playerSec.classList.add('flex');
       };
     }
 
     function closePlayer() {
-      document.getElementById('player-section').style.display = 'none';
+      const playerSec = document.getElementById('player-section');
+      playerSec.classList.remove('flex');
+      playerSec.classList.add('hidden');
       document.getElementById('game-frame').src = 'about:blank';
       if (currentBlobUrl) { URL.revokeObjectURL(currentBlobUrl); currentBlobUrl = null; }
     }
@@ -333,75 +334,71 @@ const HOME_PAGE = `<!DOCTYPE html>
 </html>`;
 
 // ============================================================================
-// TEMPLATE HTML - PAINEL DEV (/dev/) ESTILO PS5
+// TEMPLATE HTML - PAINEL DEV (/dev/)
 // ============================================================================
 const DEV_PAGE = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PythonSL GameShop - Painel Dev PS5</title>
-  <style>
-    :root {
-      --ps5-bg: #111418;
-      --ps5-blue: #0070d1;
-      --ps5-blue-hover: #005fb8;
-      --ps5-card-bg: rgba(26, 32, 44, 0.85);
-      --text-main: #f0f4f8;
-      --text-muted: #a0aec0;
-      --accent: #00f2fe;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
-    body { background-color: var(--ps5-bg); color: var(--text-main); padding: 40px; max-width: 900px; margin: auto; }
-    header {
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 20px 30px; background: var(--ps5-card-bg); border-radius: 14px; margin-bottom: 30px;
-      border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(15px);
-    }
-    .section { background: var(--ps5-card-bg); padding: 30px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(15px); }
-    input, textarea {
-      width: 100%; padding: 14px; margin: 10px 0 20px 0; background: rgba(15, 23, 42, 0.7);
-      border: 1px solid rgba(255,255,255,0.15); color: #fff; border-radius: 8px; outline: none;
-    }
-    input:focus, textarea:focus { border-color: var(--ps5-blue); box-shadow: 0 0 8px rgba(0,112,209,0.4); }
-    .btn-ps5 {
-      background: var(--ps5-blue); color: #fff; border: none; padding: 14px;
-      border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; transition: 0.2s; text-decoration: none; display: block; text-align: center;
-    }
-    .btn-ps5:hover { background: var(--ps5-blue-hover); transform: scale(1.01); }
-  </style>
+  <title>PythonSL GameShop - Painel Dev</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- SweetAlert2 CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
-<body>
-  <header>
-    <h1>🛠️ Painel de Publicação Dev</h1>
-    <a href="/" class="btn-ps5" style="width: auto; padding: 10px 20px; background: #334155;">Voltar à Store</a>
-  </header>
+<body class="bg-[#111418] text-slate-100 min-h-screen p-8 flex flex-col items-center justify-center">
 
-  <div class="section">
-    <h3 style="color: var(--accent); margin-bottom: 10px;">Publicar Novo Jogo HTML5 via /api/postgame</h3>
-    <p style="color: var(--text-muted); font-size: 0.9em; margin-bottom: 20px;">
-      Insira suas credenciais da <strong>PythonSL Account</strong> para registrar o jogo na nuvem com UUID e Hash SHA-256 exclusivos.
-    </p>
+  <div class="w-full max-w-2xl bg-slate-900/80 border border-white/10 rounded-3xl p-8 backdrop-blur-xl shadow-2xl space-y-6">
+    <header class="flex justify-between items-center border-b border-white/10 pb-4">
+      <h1 class="text-xl font-bold flex items-center gap-2"><i class="fa-solid fa-code text-cyan-400"></i> Painel de Publicação Dev</h1>
+      <a href="/" class="bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold px-4 py-2 rounded-xl transition flex items-center gap-1.5">
+        <i class="fa-solid fa-store"></i> Voltar à Store
+      </a>
+    </header>
 
-    <label>Usuário PythonSL (Developer):</label>
-    <input type="text" id="dev-user" placeholder="Seu usuário cadastrado">
+    <div class="space-y-4">
+      <p class="text-slate-400 text-sm">
+        Insira suas credenciais da <strong class="text-cyan-400">PythonSL Account</strong> para publicar seu jogo HTML5 na nuvem via <code class="bg-black/50 px-2 py-0.5 rounded text-cyan-300">/api/postgame</code>.
+      </p>
 
-    <label>Senha da Conta (SHA256):</label>
-    <input type="password" id="dev-pass" placeholder="Sua senha">
+      <div>
+        <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Usuário PythonSL (Developer):</label>
+        <input type="text" id="dev-user" placeholder="Seu usuário" class="w-full bg-slate-950 border border-white/15 px-4 py-3 rounded-xl focus:outline-none focus:border-cyan-500">
+      </div>
 
-    <label>Nome Oficial do Jogo:</label>
-    <input type="text" id="game-title" placeholder="Ex: Horizon PythonSL">
+      <div>
+        <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Senha da Conta (SHA256):</label>
+        <input type="password" id="dev-pass" placeholder="Sua senha" class="w-full bg-slate-950 border border-white/15 px-4 py-3 rounded-xl focus:outline-none focus:border-cyan-500">
+      </div>
 
-    <label>Preço em SL$ (0 para gratuito):</label>
-    <input type="number" id="game-price" value="0" min="0">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Nome Oficial do Jogo:</label>
+          <input type="text" id="game-title" placeholder="Ex: Cyber PythonSL" class="w-full bg-slate-950 border border-white/15 px-4 py-3 rounded-xl focus:outline-none focus:border-cyan-500">
+        </div>
+        <div>
+          <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Preço em SL$ (0 = Grátis):</label>
+          <input type="number" id="game-price" value="0" min="0" class="w-full bg-slate-950 border border-white/15 px-4 py-3 rounded-xl focus:outline-none focus:border-cyan-500">
+        </div>
+      </div>
 
-    <label>Arquivo HTML do Jogo (.html):</label>
-    <input type="file" id="game-file" accept=".html,.htm" style="padding: 10px; background:rgba(15, 23, 42, 0.7); border:1px solid rgba(255,255,255,0.15); color:#fff; border-radius:8px; margin-bottom:20px;">
-    
-    <label>Ou Código Fonte HTML5 Bruto:</label>
-    <textarea id="game-code" rows="8" placeholder="<!DOCTYPE html>..."></textarea>
+      <div>
+        <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Arquivo HTML (.html):</label>
+        <input type="file" id="game-file" accept=".html,.htm" class="w-full bg-slate-950 border border-white/15 p-2.5 rounded-xl text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-cyan-600 file:text-white hover:file:bg-cyan-500 cursor-pointer">
+      </div>
 
-    <button class="btn-ps5" onclick="publishGame()" style="background: #10b981;">🚀 Publicar na Nuvem</button>
+      <div>
+        <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Ou Código HTML5 Bruto:</label>
+        <textarea id="game-code" rows="6" placeholder="<!DOCTYPE html>..." class="w-full bg-slate-950 border border-white/15 p-4 rounded-xl focus:outline-none font-mono text-sm focus:border-cyan-500"></textarea>
+      </div>
+
+      <button onclick="publishGame()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3.5 px-6 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/30">
+        <i class="fa-solid fa-cloud-arrow-up"></i> Publicar Jogo na Nuvem
+      </button>
+    </div>
   </div>
 
   <script>
@@ -423,8 +420,16 @@ const DEV_PAGE = `<!DOCTYPE html>
       const html_content = document.getElementById('game-code').value;
 
       if (!developer || !pass || !title || !html_content) {
-        return alert("Preencha todos os campos obrigatórios e forneça o código HTML!");
+        return Swal.fire({ icon: 'warning', title: 'Campos Incompletos', text: 'Preencha todas as informações e o código HTML!', background: '#1e293b', color: '#fff' });
       }
+
+      Swal.fire({
+        title: 'Publicando...',
+        text: 'Enviando jogo para a nuvem da PythonSL...',
+        allowOutsideClick: false,
+        didOpen: () => { Swal.showLoading(); },
+        background: '#1e293b', color: '#fff'
+      });
 
       const res = await fetch('/api/postgame', {
         method: 'POST',
@@ -434,10 +439,17 @@ const DEV_PAGE = `<!DOCTYPE html>
 
       const data = await res.json();
       if (!res.ok) {
-        alert("Erro ao publicar: " + (data.error || "Falha desconhecida"));
+        Swal.fire({ icon: 'error', title: 'Erro ao Publicar', text: data.error || 'Falha desconhecida', background: '#1e293b', color: '#fff' });
       } else {
-        alert("Sucesso! Jogo '" + title + "' publicado na Store.");
-        window.location.href = '/';
+        Swal.fire({
+          icon: 'success',
+          title: 'Publicado com Sucesso!',
+          text: 'Seu jogo já está disponível na Store.',
+          background: '#1e293b',
+          color: '#fff'
+        }).then(() => {
+          window.location.href = '/';
+        });
       }
     }
   </script>
@@ -469,7 +481,7 @@ export default {
       return new Response(HOME_PAGE, {
         headers: { 
           'Content-Type': 'text/html; charset=utf-8',
-          'Content-Security-Policy': "default-src 'self' 'unsafe-inline' blob:; frame-src 'self' blob:;",
+          'Content-Security-Policy': "default-src 'self' 'unsafe-inline' blob: https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; frame-src 'self' blob:;",
           'X-Frame-Options': 'SAMEORIGIN'
         }
       });
@@ -479,7 +491,7 @@ export default {
       return new Response(DEV_PAGE, {
         headers: { 
           'Content-Type': 'text/html; charset=utf-8',
-          'Content-Security-Policy': "default-src 'self' 'unsafe-inline' blob:;",
+          'Content-Security-Policy': "default-src 'self' 'unsafe-inline' blob: https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; frame-src 'self' blob:;",
           'X-Frame-Options': 'SAMEORIGIN'
         }
       });
