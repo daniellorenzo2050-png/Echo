@@ -1,12 +1,12 @@
 // ============================================================================
-// TEMPLATE HTML / CSS / JS - LOJA PRINCIPAL (/)
+// TEMPLATE HTML / CSS / JS - LOJA PRINCIPAL COM CARROSSEL DE CARDS ESTILO PS5
 // ============================================================================
 const HOME_PAGE = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PythonSL GameShop - PS5 Edition</title>
+  <title>PythonSL GameShop - PS5 Experience</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Font Awesome CDN -->
@@ -18,16 +18,53 @@ const HOME_PAGE = `<!DOCTYPE html>
       theme: {
         extend: {
           colors: {
-            ps5Bg: '#111418',
+            ps5Bg: '#0d1117',
             ps5Blue: '#0070d1',
             ps5BlueHover: '#005fb8',
-            ps5Card: 'rgba(26, 32, 44, 0.85)',
-            ps5CardHover: 'rgba(45, 55, 72, 0.95)',
+            ps5Card: '#161b22',
+            ps5CardHover: '#1f242c',
           }
         }
       }
     }
   </script>
+  <style>
+    /* Estilo de Carrossel PS5 Smooth */
+    .ps5-carousel {
+      display: flex;
+      gap: 20px;
+      overflow-x: auto;
+      padding-bottom: 15px;
+      scroll-snap-type: x mandatory;
+      scrollbar-width: thin;
+      scrollbar-color: #0070d1 #161b22;
+    }
+    .ps5-carousel::-webkit-scrollbar { height: 8px; }
+    .ps5-carousel::-webkit-scrollbar-track { background: #161b22; border-radius: 4px; }
+    .ps5-carousel::-webkit-scrollbar-thumb { background: #0070d1; border-radius: 4px; }
+    
+    .ps5-hero-card {
+      min-width: 320px;
+      max-width: 320px;
+      height: 180px;
+      scroll-snap-align: start;
+      background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+      border: 2px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+      position: relative;
+      overflow: hidden;
+    }
+    .ps5-hero-card:hover {
+      transform: scale(1.05);
+      border-color: #0070d1;
+      box-shadow: 0 15px 30px rgba(0, 112, 209, 0.4);
+    }
+  </style>
 </head>
 <body class="bg-ps5Bg text-slate-100 min-h-screen selection:bg-cyan-500 selection:text-black">
 
@@ -63,6 +100,16 @@ const HOME_PAGE = `<!DOCTYPE html>
       </div>
     </section>
 
+    <!-- SISTEMA DE CARDS EM DESTAQUE (ESTILO CARROSSEL PS5) -->
+    <section>
+      <h2 class="text-2xl font-light mb-4 flex items-center gap-2.5">
+        <i class="fa-solid fa-fire text-amber-400"></i> Jogos em Destaque (PS5 Carousel)
+      </h2>
+      <div id="ps5-hero-carousel" class="ps5-carousel">
+        <p class="text-slate-500 text-sm italic">Carregando carrossel...</p>
+      </div>
+    </section>
+
     <!-- Barra de Pesquisa Avançada -->
     <section class="bg-slate-900/70 border border-white/10 rounded-2xl p-6 backdrop-blur-md shadow-2xl">
       <h3 class="text-cyan-400 font-semibold mb-3 flex items-center gap-2">
@@ -92,7 +139,7 @@ const HOME_PAGE = `<!DOCTYPE html>
     <!-- Catálogo de Jogos -->
     <div>
       <h2 class="text-2xl font-light mb-6 flex items-center gap-2.5">
-        <i class="fa-solid fa-store text-cyan-400"></i> Biblioteca & Jogos Disponíveis
+        <i class="fa-solid fa-store text-cyan-400"></i> Biblioteca Completa
       </h2>
       <div id="games-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
     </div>
@@ -157,7 +204,46 @@ const HOME_PAGE = `<!DOCTYPE html>
     async function loadGames() {
       const res = await fetch('/api/listgames');
       allGamesCache = await res.json();
+      renderHeroCarousel(allGamesCache);
       filterGames();
+    }
+
+    // Renderizador do Carrossel Estilo PS5 no Topo
+    function renderHeroCarousel(games) {
+      const carousel = document.getElementById('ps5-hero-carousel');
+      carousel.innerHTML = '';
+
+      if (games.length === 0) {
+        carousel.innerHTML = '<p class="text-slate-500 text-sm">Nenhum jogo em destaque no momento.</p>';
+        return;
+      }
+
+      // Pega até os últimos 6 jogos adicionados para o carrossel estilo PS5
+      const recentGames = [...games].reverse().slice(0, 6);
+
+      recentGames.forEach(game => {
+        const card = document.createElement('div');
+        card.className = 'ps5-hero-card';
+        card.innerHTML = \`
+          <div>
+            <span class="text-xs bg-ps5Blue text-white px-2 py-0.5 rounded font-bold uppercase tracking-wider">Destaque</span>
+            <h4 class="text-lg font-bold text-white mt-2 truncate">\${game.title}</h4>
+            <p class="text-slate-400 text-xs">Dev: \${game.developer}</p>
+          </div>
+          <div class="flex justify-between items-center mt-3">
+            <span class="text-cyan-400 font-bold text-sm">SL$ \${game.price}</span>
+            <div class="flex gap-2">
+              <button onclick="buyAndInstall('\${game.uuid}')" class="bg-ps5Blue hover:bg-ps5BlueHover text-white px-3 py-1.5 rounded-lg text-xs font-bold transition shadow" title="Baixar/Instalar">
+                <i class="fa-solid fa-download"></i>
+              </button>
+              <button onclick="playGame('\${game.uuid}', '\${game.title}')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition shadow" title="Jogar Agora">
+                <i class="fa-solid fa-play"></i>
+              </button>
+            </div>
+          </div>
+        \`;
+        carousel.appendChild(card);
+      });
     }
 
     function filterGames() {
