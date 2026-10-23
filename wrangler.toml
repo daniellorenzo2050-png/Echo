@@ -1,23 +1,14 @@
-name = "castly"
+name = "pythonsl-gameshop"
 main = "src/index.js"
-compatibility_date = "2026-03-01"
+compatibility_date = "2026-10-01"
 
-[vars]
-ENVIRONMENT = "production"
-
+# Banco de Dados D1 para Usuários
 [[d1_databases]]
 binding = "DB"
-database_name = "castly-db"
-database_id = "8750bb45-05e1-4df9-86ad-b2a1aa271d5e"
+database_name = "pythonsl_db"
+database_id = "d02ad11f-6d71-4178-9d8c-892a09ec7e25"
 
+# KV Namespace para os Jogos HTML5
 [[kv_namespaces]]
-binding = "CASTLY_KV"
-id = "98e04f1695a747fa8cb77b835cc16f68"
-
-[[durable_objects.bindings]]
-name = "VIDEO_ROOM"
-class_name = "VideoRoom"
-
-[[migrations]]
-tag = "v1"
-new_sqlite_classes = ["VideoRoom"]
+binding = "GAMES_KV"
+id = "1ea1daed75854437b3800a69c0578296"
