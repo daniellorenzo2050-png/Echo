@@ -1,5 +1,5 @@
 // ============================================================================
-// TEMPLATE HTML / CSS / JS - LOJA PRINCIPAL COM CARROSSEL DE CARDS ESTILO PS5
+// TEMPLATE HTML / CSS / JS - LOJA PRINCIPAL (/)
 // ============================================================================
 const HOME_PAGE = `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -29,7 +29,6 @@ const HOME_PAGE = `<!DOCTYPE html>
     }
   </script>
   <style>
-    /* Estilo de Carrossel PS5 Smooth */
     .ps5-carousel {
       display: flex;
       gap: 20px;
@@ -68,14 +67,13 @@ const HOME_PAGE = `<!DOCTYPE html>
 </head>
 <body class="bg-ps5Bg text-slate-100 min-h-screen selection:bg-cyan-500 selection:text-black">
 
-  <!-- Header / StatusBar -->
-  <header class="flex justify-between items-center px-10 py-5 bg-slate-900/60 backdrop-blur-xl border-b border-white/10 sticky top-0 z-50">
+  <header class="flex justify-between items-center px-6 md:px-10 py-5 bg-slate-900/60 backdrop-blur-xl border-b border-white/10 sticky top-0 z-50">
     <div class="flex items-center gap-3">
       <i class="fa-solid fa-gamepad text-2xl text-cyan-400"></i>
-      <h1 class="text-xl font-bold tracking-wide">PythonSL GameShop <span class="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-1 rounded-md ml-2 border border-cyan-500/30">PS5 UI</span></h1>
+      <h1 class="text-lg md:text-xl font-bold tracking-wide">PythonSL GameShop <span class="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-1 rounded-md ml-2 border border-cyan-500/30">PS5 UI</span></h1>
     </div>
-    <div class="flex items-center gap-4 bg-black/40 px-5 py-2 rounded-full border border-white/10">
-      <span id="user-display" class="text-slate-400 text-sm"><i class="fa-solid fa-user mr-1.5"></i> Visitante</span>
+    <div class="flex items-center gap-3 bg-black/40 px-4 py-2 rounded-full border border-white/10">
+      <span id="user-display" class="text-slate-400 text-xs hidden sm:inline"><i class="fa-solid fa-user mr-1.5"></i> Visitante</span>
       <span id="balance-display" class="bg-ps5Blue text-white px-3 py-1 rounded-full font-bold text-xs shadow-lg shadow-blue-500/30">SL$ 0</span>
       <a href="/dev/" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
         <i class="fa-solid fa-code"></i> Painel Dev
@@ -83,9 +81,8 @@ const HOME_PAGE = `<!DOCTYPE html>
     </div>
   </header>
 
-  <main class="max-w-7xl mx-auto p-8 space-y-8">
+  <main class="max-w-7xl mx-auto p-4 md:p-8 space-y-8">
 
-    <!-- Seção de Conta & Vonder -->
     <section class="bg-slate-900/70 border border-white/10 rounded-2xl p-6 backdrop-blur-md shadow-2xl">
       <h3 class="text-cyan-400 font-semibold mb-3 flex items-center gap-2">
         <i class="fa-solid fa-key"></i> PythonSL Account & Resgate de Vonder
@@ -100,9 +97,8 @@ const HOME_PAGE = `<!DOCTYPE html>
       </div>
     </section>
 
-    <!-- SISTEMA DE CARDS EM DESTAQUE (ESTILO CARROSSEL PS5) -->
     <section>
-      <h2 class="text-2xl font-light mb-4 flex items-center gap-2.5">
+      <h2 class="text-xl md:text-2xl font-light mb-4 flex items-center gap-2.5">
         <i class="fa-solid fa-fire text-amber-400"></i> Jogos em Destaque (PS5 Carousel)
       </h2>
       <div id="ps5-hero-carousel" class="ps5-carousel">
@@ -110,20 +106,19 @@ const HOME_PAGE = `<!DOCTYPE html>
       </div>
     </section>
 
-    <!-- Barra de Pesquisa Avançada -->
     <section class="bg-slate-900/70 border border-white/10 rounded-2xl p-6 backdrop-blur-md shadow-2xl">
       <h3 class="text-cyan-400 font-semibold mb-3 flex items-center gap-2">
         <i class="fa-solid fa-magnifying-glass"></i> Pesquisar na Store
       </h3>
       <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
         <input type="text" id="search-query" placeholder="Nome, dev, UUID ou Hash..." oninput="filterGames()" class="md:col-span-2 bg-slate-950/70 border border-white/15 px-4 py-3 rounded-xl focus:outline-none focus:border-ps5Blue focus:ring-2 focus:ring-ps5Blue/40 transition">
-        <select id="search-price-filter" onchange="filterGames()" class="bg-slate-950/70 border border-white/15 px-4 py-3 rounded-xl focus:outline-none focus:border-ps5Blue">
+        <select id="search-price-filter" onchange="filterGames()" class="bg-slate-950/70 border border-white/15 px-4 py-3 rounded-xl focus:outline-none focus:border-ps5Blue text-slate-200">
           <option value="all">Todos os Preços</option>
           <option value="free">Grátis (SL$ 0)</option>
           <option value="paid">Pagos (SL$ > 0)</option>
         </select>
         <div class="flex gap-2">
-          <select id="search-sort" onchange="filterGames()" class="w-full bg-slate-950/70 border border-white/15 px-3 py-3 rounded-xl focus:outline-none focus:border-ps5Blue">
+          <select id="search-sort" onchange="filterGames()" class="w-full bg-slate-950/70 border border-white/15 px-3 py-3 rounded-xl focus:outline-none focus:border-ps5Blue text-slate-200">
             <option value="newest">Mais Recentes</option>
             <option value="price-asc">Menor Preço</option>
             <option value="price-desc">Maior Preço</option>
@@ -136,9 +131,8 @@ const HOME_PAGE = `<!DOCTYPE html>
       </div>
     </section>
 
-    <!-- Catálogo de Jogos -->
     <div>
-      <h2 class="text-2xl font-light mb-6 flex items-center gap-2.5">
+      <h2 class="text-xl md:text-2xl font-light mb-6 flex items-center gap-2.5">
         <i class="fa-solid fa-store text-cyan-400"></i> Biblioteca Completa
       </h2>
       <div id="games-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
@@ -146,10 +140,9 @@ const HOME_PAGE = `<!DOCTYPE html>
 
   </main>
 
-  <!-- Player de Jogo (Fullscreen PS5 Modal) -->
-  <div id="player-section" class="fixed inset-0 bg-slate-950/95 z-50 p-8 flex-col hidden backdrop-blur-2xl">
+  <div id="player-section" class="fixed inset-0 bg-slate-950/95 z-50 p-4 md:p-8 flex-col hidden backdrop-blur-2xl">
     <div class="flex justify-between items-center mb-4">
-      <h3 id="playing-title" class="text-xl font-semibold flex items-center gap-2">
+      <h3 id="playing-title" class="text-lg md:text-xl font-semibold flex items-center gap-2">
         <i class="fa-solid fa-play text-emerald-400"></i> Rodando Jogo
       </h3>
       <button onclick="closePlayer()" class="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-xl font-bold transition flex items-center gap-2 shadow-lg shadow-red-600/30">
@@ -208,7 +201,6 @@ const HOME_PAGE = `<!DOCTYPE html>
       filterGames();
     }
 
-    // Renderizador do Carrossel Estilo PS5 no Topo
     function renderHeroCarousel(games) {
       const carousel = document.getElementById('ps5-hero-carousel');
       carousel.innerHTML = '';
@@ -218,7 +210,6 @@ const HOME_PAGE = `<!DOCTYPE html>
         return;
       }
 
-      // Pega até os últimos 6 jogos adicionados para o carrossel estilo PS5
       const recentGames = [...games].reverse().slice(0, 6);
 
       recentGames.forEach(game => {
@@ -435,11 +426,11 @@ const DEV_PAGE = `<!DOCTYPE html>
   <!-- SweetAlert2 CDN -->
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
-<body class="bg-[#111418] text-slate-100 min-h-screen p-8 flex flex-col items-center justify-center">
+<body class="bg-[#111418] text-slate-100 min-h-screen p-4 md:p-8 flex flex-col items-center justify-center">
 
-  <div class="w-full max-w-2xl bg-slate-900/80 border border-white/10 rounded-3xl p-8 backdrop-blur-xl shadow-2xl space-y-6">
+  <div class="w-full max-w-2xl bg-slate-900/80 border border-white/10 rounded-3xl p-6 md:p-8 backdrop-blur-xl shadow-2xl space-y-6">
     <header class="flex justify-between items-center border-b border-white/10 pb-4">
-      <h1 class="text-xl font-bold flex items-center gap-2"><i class="fa-solid fa-code text-cyan-400"></i> Painel de Publicação Dev</h1>
+      <h1 class="text-lg md:text-xl font-bold flex items-center gap-2"><i class="fa-solid fa-code text-cyan-400"></i> Painel de Publicação Dev</h1>
       <a href="/" class="bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold px-4 py-2 rounded-xl transition flex items-center gap-1.5">
         <i class="fa-solid fa-store"></i> Voltar à Store
       </a>
