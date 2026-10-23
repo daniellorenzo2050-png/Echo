@@ -1,5 +1,5 @@
 // ============================================================================
-// TEMPLATE HTML / CSS / JS - LOJA PRINCIPAL (/)
+// TEMPLATE HTML / CSS / JS - LOJA PRINCIPAL (PS5 UI COM CSS PURO)
 // ============================================================================
 const HOME_PAGE = `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -7,150 +7,166 @@ const HOME_PAGE = `<!DOCTYPE html>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PythonSL GameShop - PS5 Experience</title>
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
   <!-- Font Awesome CDN -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <!-- SweetAlert2 CDN -->
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            ps5Bg: '#0d1117',
-            ps5Blue: '#0070d1',
-            ps5BlueHover: '#005fb8',
-            ps5Card: '#161b22',
-            ps5CardHover: '#1f242c',
-          }
-        }
-      }
-    }
-  </script>
   <style>
+    :root {
+      --bg-color: #0d1117;
+      --card-bg: rgba(22, 27, 34, 0.85);
+      --card-hover: rgba(31, 36, 44, 0.95);
+      --ps5-blue: #0070d1;
+      --ps5-blue-hover: #005fb8;
+      --accent: #00f2fe;
+      --text-main: #f0f4f8;
+      --text-muted: #8b949e;
+      --border-color: rgba(255, 255, 255, 0.08);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+    body { background-color: var(--bg-color); color: var(--text-main); min-height: 100vh; padding-bottom: 50px; }
+
+    header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 18px 30px; background: rgba(13, 17, 23, 0.8); backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border-color); position: sticky; top: 0; z-index: 100;
+    }
+    .logo-area { display: flex; align-items: center; gap: 12px; }
+    .logo-area h1 { font-size: 1.25rem; font-weight: bold; }
+    .tag-ps5 { background: rgba(0, 242, 254, 0.15); color: var(--accent); padding: 3px 8px; border-radius: 6px; font-size: 0.75rem; border: 1px solid rgba(0, 242, 254, 0.3); }
+
+    .user-profile { display: flex; gap: 15px; align-items: center; background: rgba(0,0,0,0.4); padding: 6px 16px; border-radius: 30px; border: 1px solid var(--border-color); }
+    .badge-sl { background: var(--ps5-blue); color: #fff; padding: 4px 10px; border-radius: 20px; font-weight: bold; font-size: 0.8rem; box-shadow: 0 0 10px rgba(0,112,209,0.4); }
+
+    .container { max-width: 1300px; margin: auto; padding: 30px 20px; }
+
+    .section-box {
+      background: var(--card-bg); border: 1px solid var(--border-color);
+      border-radius: 16px; padding: 24px; margin-bottom: 25px; backdrop-filter: blur(10px);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    .section-box h3 { color: var(--accent); font-size: 1rem; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+
+    .grid-auth { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+    input, select {
+      width: 100%; padding: 12px 15px; background: rgba(10, 15, 22, 0.8);
+      border: 1px solid var(--border-color); color: #fff; border-radius: 10px; outline: none; transition: 0.2s;
+    }
+    input:focus, select:focus { border-color: var(--ps5-blue); box-shadow: 0 0 8px rgba(0,112,209,0.4); }
+
+    .btn {
+      background: var(--ps5-blue); color: #fff; border: none; padding: 12px 20px;
+      border-radius: 10px; font-weight: bold; cursor: pointer; transition: 0.2s; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-align: center;
+    }
+    .btn:hover { background: var(--ps5-blue-hover); transform: translateY(-1px); }
+    .btn-play { background: #10b981; }
+    .btn-play:hover { background: #059669; }
+    .btn-delete { background: #ef4444; font-size: 0.8rem; padding: 8px 12px; }
+    .btn-delete:hover { background: #dc2626; }
+    .btn-secondary { background: #334155; }
+    .btn-secondary:hover { background: #475569; }
+
+    /* Carrossel PS5 */
     .ps5-carousel {
-      display: flex;
-      gap: 20px;
-      overflow-x: auto;
-      padding-bottom: 15px;
-      scroll-snap-type: x mandatory;
-      scrollbar-width: thin;
-      scrollbar-color: #0070d1 #161b22;
+      display: flex; gap: 20px; overflow-x: auto; padding-bottom: 15px;
+      scroll-snap-type: x mandatory; scrollbar-width: thin; scrollbar-color: var(--ps5-blue) var(--card-bg);
     }
-    .ps5-carousel::-webkit-scrollbar { height: 8px; }
-    .ps5-carousel::-webkit-scrollbar-track { background: #161b22; border-radius: 4px; }
-    .ps5-carousel::-webkit-scrollbar-thumb { background: #0070d1; border-radius: 4px; }
-    
     .ps5-hero-card {
-      min-width: 320px;
-      max-width: 320px;
-      height: 180px;
-      scroll-snap-align: start;
+      min-width: 300px; max-width: 300px; height: 170px; scroll-snap-align: start;
       background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
-      border: 2px solid rgba(255, 255, 255, 0.08);
-      border-radius: 16px;
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-      position: relative;
-      overflow: hidden;
+      border: 2px solid var(--border-color); border-radius: 14px; padding: 18px;
+      display: flex; flex-direction: column; justify-content: space-between; transition: 0.3s;
     }
-    .ps5-hero-card:hover {
-      transform: scale(1.05);
-      border-color: #0070d1;
-      box-shadow: 0 15px 30px rgba(0, 112, 209, 0.4);
+    .ps5-hero-card:hover { transform: scale(1.03); border-color: var(--ps5-blue); box-shadow: 0 10px 25px rgba(0,112,209,0.3); }
+
+    /* Grid do Catálogo */
+    h2 { font-size: 1.4rem; font-weight: 500; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+    .games-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
+    .game-card {
+      background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 14px;
+      padding: 20px; display: flex; flex-direction: column; justify-content: space-between; transition: 0.3s;
     }
+    .game-card:hover { transform: translateY(-5px); border-color: var(--ps5-blue); background: var(--card-hover); box-shadow: 0 10px 25px rgba(0,112,209,0.2); }
+
+    /* Player Tela Cheia */
+    #player-section {
+      background: rgba(8, 12, 18, 0.96); position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      z-index: 1000; padding: 25px; display: none; flex-direction: column; backdrop-filter: blur(20px);
+    }
+    .player-wrapper { flex: 1; width: 100%; background: #000; border-radius: 12px; overflow: hidden; border: 1px solid var(--border-color); margin-top: 15px; }
+    iframe { width: 100%; height: 100%; border: none; background: #fff; }
   </style>
 </head>
-<body class="bg-ps5Bg text-slate-100 min-h-screen selection:bg-cyan-500 selection:text-black">
+<body>
 
-  <header class="flex justify-between items-center px-6 md:px-10 py-5 bg-slate-900/60 backdrop-blur-xl border-b border-white/10 sticky top-0 z-50">
-    <div class="flex items-center gap-3">
-      <i class="fa-solid fa-gamepad text-2xl text-cyan-400"></i>
-      <h1 class="text-lg md:text-xl font-bold tracking-wide">PythonSL GameShop <span class="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-1 rounded-md ml-2 border border-cyan-500/30">PS5 UI</span></h1>
+  <header>
+    <div class="logo-area">
+      <i class="fa-solid fa-gamepad" style="color: var(--accent); font-size: 1.5rem;"></i>
+      <h1>PythonSL GameShop <span class="tag-ps5">PS5 UI</span></h1>
     </div>
-    <div class="flex items-center gap-3 bg-black/40 px-4 py-2 rounded-full border border-white/10">
-      <span id="user-display" class="text-slate-400 text-xs hidden sm:inline"><i class="fa-solid fa-user mr-1.5"></i> Visitante</span>
-      <span id="balance-display" class="bg-ps5Blue text-white px-3 py-1 rounded-full font-bold text-xs shadow-lg shadow-blue-500/30">SL$ 0</span>
-      <a href="/dev/" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
-        <i class="fa-solid fa-code"></i> Painel Dev
-      </a>
+    <div class="user-profile">
+      <span id="user-display" style="color: var(--text-muted); font-size: 0.85rem;"><i class="fa-solid fa-user"></i> Visitante</span>
+      <span class="badge-sl" id="balance-display">SL$ 0</span>
+      <a href="/dev/" class="btn" style="padding: 6px 12px; font-size: 0.8rem; background: #059669;"><i class="fa-solid fa-code"></i> Painel Dev</a>
     </div>
   </header>
 
-  <main class="max-w-7xl mx-auto p-4 md:p-8 space-y-8">
+  <div class="container">
 
-    <section class="bg-slate-900/70 border border-white/10 rounded-2xl p-6 backdrop-blur-md shadow-2xl">
-      <h3 class="text-cyan-400 font-semibold mb-3 flex items-center gap-2">
-        <i class="fa-solid fa-key"></i> PythonSL Account & Resgate de Vonder
-      </h3>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <input type="text" id="username" placeholder="Usuário PythonSL" class="bg-slate-950/70 border border-white/15 px-4 py-3 rounded-xl focus:outline-none focus:border-ps5Blue focus:ring-2 focus:ring-ps5Blue/40 transition">
-        <input type="password" id="password" placeholder="Senha SHA256" class="bg-slate-950/70 border border-white/15 px-4 py-3 rounded-xl focus:outline-none focus:border-ps5Blue focus:ring-2 focus:ring-ps5Blue/40 transition">
-        <input type="text" id="redeem-code" placeholder="Código Vonder (ex: STATER2016)" class="bg-slate-950/70 border border-white/15 px-4 py-3 rounded-xl focus:outline-none focus:border-ps5Blue focus:ring-2 focus:ring-ps5Blue/40 transition">
-        <button onclick="redeem()" class="bg-ps5Blue hover:bg-ps5BlueHover text-white font-bold px-6 py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-blue-600/30">
-          <i class="fa-solid fa-right-to-bracket"></i> Conectar / Resgatar
-        </button>
+    <!-- Conta & Vonder -->
+    <div class="section-box">
+      <h3><i class="fa-solid fa-key"></i> PythonSL Account & Resgate de Vonder</h3>
+      <div class="grid-auth">
+        <input type="text" id="username" placeholder="Usuário PythonSL">
+        <input type="password" id="password" placeholder="Senha SHA256">
+        <input type="text" id="redeem-code" placeholder="Código Vonder (ex: STATER2016)">
+        <button class="btn" onclick="redeem()"><i class="fa-solid fa-right-to-bracket"></i> Conectar / Resgatar</button>
       </div>
-    </section>
+    </div>
 
-    <section>
-      <h2 class="text-xl md:text-2xl font-light mb-4 flex items-center gap-2.5">
-        <i class="fa-solid fa-fire text-amber-400"></i> Jogos em Destaque (PS5 Carousel)
-      </h2>
+    <!-- Carrossel Destaque PS5 -->
+    <div style="margin-bottom: 35px;">
+      <h2><i class="fa-solid fa-fire" style="color: #f59e0b;"></i> Jogos em Destaque (PS5 Carousel)</h2>
       <div id="ps5-hero-carousel" class="ps5-carousel">
-        <p class="text-slate-500 text-sm italic">Carregando carrossel...</p>
+        <p style="color: var(--text-muted); font-size: 0.9rem; font-style: italic;">A carregar carrossel...</p>
       </div>
-    </section>
+    </div>
 
-    <section class="bg-slate-900/70 border border-white/10 rounded-2xl p-6 backdrop-blur-md shadow-2xl">
-      <h3 class="text-cyan-400 font-semibold mb-3 flex items-center gap-2">
-        <i class="fa-solid fa-magnifying-glass"></i> Pesquisar na Store
-      </h3>
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
-        <input type="text" id="search-query" placeholder="Nome, dev, UUID ou Hash..." oninput="filterGames()" class="md:col-span-2 bg-slate-950/70 border border-white/15 px-4 py-3 rounded-xl focus:outline-none focus:border-ps5Blue focus:ring-2 focus:ring-ps5Blue/40 transition">
-        <select id="search-price-filter" onchange="filterGames()" class="bg-slate-950/70 border border-white/15 px-4 py-3 rounded-xl focus:outline-none focus:border-ps5Blue text-slate-200">
+    <!-- Busca Avançada -->
+    <div class="section-box">
+      <h3><i class="fa-solid fa-magnifying-glass"></i> Pesquisar na Store</h3>
+      <div style="display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 12px; align-items: center;">
+        <input type="text" id="search-query" placeholder="Nome, dev, UUID ou Hash..." oninput="filterGames()">
+        <select id="search-price-filter" onchange="filterGames()">
           <option value="all">Todos os Preços</option>
           <option value="free">Grátis (SL$ 0)</option>
           <option value="paid">Pagos (SL$ > 0)</option>
         </select>
-        <div class="flex gap-2">
-          <select id="search-sort" onchange="filterGames()" class="w-full bg-slate-950/70 border border-white/15 px-3 py-3 rounded-xl focus:outline-none focus:border-ps5Blue text-slate-200">
-            <option value="newest">Mais Recentes</option>
-            <option value="price-asc">Menor Preço</option>
-            <option value="price-desc">Maior Preço</option>
-            <option value="title">Nome (A-Z)</option>
-          </select>
-          <button onclick="resetSearch()" class="bg-slate-700 hover:bg-slate-600 px-4 py-3 rounded-xl transition text-white" title="Limpar Filtros">
-            <i class="fa-solid fa-rotate-right"></i>
-          </button>
-        </div>
+        <select id="search-sort" onchange="filterGames()">
+          <option value="newest">Mais Recentes</option>
+          <option value="price-asc">Menor Preço</option>
+          <option value="price-desc">Maior Preço</option>
+          <option value="title">Nome (A-Z)</option>
+        </select>
+        <button class="btn btn-secondary" onclick="resetSearch()" title="Limpar Filtros"><i class="fa-solid fa-rotate-right"></i></button>
       </div>
-    </section>
-
-    <div>
-      <h2 class="text-xl md:text-2xl font-light mb-6 flex items-center gap-2.5">
-        <i class="fa-solid fa-store text-cyan-400"></i> Biblioteca Completa
-      </h2>
-      <div id="games-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
     </div>
 
-  </main>
+    <!-- Catálogo Completo -->
+    <h2><i class="fa-solid fa-store" style="color: var(--accent);"></i> Biblioteca Completa</h2>
+    <div class="games-grid" id="games-list"></div>
 
-  <div id="player-section" class="fixed inset-0 bg-slate-950/95 z-50 p-4 md:p-8 flex-col hidden backdrop-blur-2xl">
-    <div class="flex justify-between items-center mb-4">
-      <h3 id="playing-title" class="text-lg md:text-xl font-semibold flex items-center gap-2">
-        <i class="fa-solid fa-play text-emerald-400"></i> Rodando Jogo
-      </h3>
-      <button onclick="closePlayer()" class="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-xl font-bold transition flex items-center gap-2 shadow-lg shadow-red-600/30">
-        <i class="fa-solid fa-xmark"></i> Sair do Jogo
-      </button>
+  </div>
+
+  <!-- Player Tela Cheia PS5 -->
+  <div id="player-section">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <h3 id="playing-title" style="font-size: 1.1rem; color: #fff;"><i class="fa-solid fa-play" style="color: #10b981;"></i> Rodando Jogo</h3>
+      <button class="btn btn-delete" onclick="closePlayer()"><i class="fa-solid fa-xmark"></i> Sair do Jogo</button>
     </div>
-    <div class="flex-1 w-full bg-black rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
-      <iframe id="game-frame" sandbox="allow-scripts allow-same-origin allow-modals" class="w-full h-full bg-white"></iframe>
+    <div class="player-wrapper">
+      <iframe id="game-frame" sandbox="allow-scripts allow-same-origin allow-modals"></iframe>
     </div>
   </div>
 
@@ -174,7 +190,7 @@ const HOME_PAGE = `<!DOCTYPE html>
       const code = document.getElementById('redeem-code').value.trim();
 
       if (!user || !pass) {
-        return Swal.fire({ icon: 'warning', title: 'Atenção', text: 'Preencha seu usuário e senha da PythonSL Account!', background: '#1e293b', color: '#fff' });
+        return Swal.fire({ icon: 'warning', title: 'Atenção', text: 'Preencha seu usuário e senha da PythonSL Account!', background: '#161b22', color: '#fff' });
       }
 
       const res = await fetch('/api/reedem/', {
@@ -185,10 +201,10 @@ const HOME_PAGE = `<!DOCTYPE html>
       const data = await res.json();
       
       if (!res.ok) {
-        Swal.fire({ icon: 'error', title: 'Erro', text: data.error, background: '#1e293b', color: '#fff' });
+        Swal.fire({ icon: 'error', title: 'Erro', text: data.error, background: '#161b22', color: '#fff' });
       } else {
-        Swal.fire({ icon: 'success', title: 'Sucesso!', text: data.message, background: '#1e293b', color: '#fff', timer: 2000, showConfirmButton: false });
-        document.getElementById('user-display').innerHTML = '<i class="fa-solid fa-user mr-1.5"></i> ' + user;
+        Swal.fire({ icon: 'success', title: 'Sucesso!', text: data.message, background: '#161b22', color: '#fff', timer: 2000, showConfirmButton: false });
+        document.getElementById('user-display').innerHTML = '<i class="fa-solid fa-user"></i> ' + user;
         document.getElementById('balance-display').innerText = 'SL$ ' + data.new_balance;
         filterGames();
       }
@@ -206,7 +222,7 @@ const HOME_PAGE = `<!DOCTYPE html>
       carousel.innerHTML = '';
 
       if (games.length === 0) {
-        carousel.innerHTML = '<p class="text-slate-500 text-sm">Nenhum jogo em destaque no momento.</p>';
+        carousel.innerHTML = '<p style="color: var(--text-muted); font-size: 0.85rem;">Nenhum jogo em destaque no momento.</p>';
         return;
       }
 
@@ -217,19 +233,15 @@ const HOME_PAGE = `<!DOCTYPE html>
         card.className = 'ps5-hero-card';
         card.innerHTML = \`
           <div>
-            <span class="text-xs bg-ps5Blue text-white px-2 py-0.5 rounded font-bold uppercase tracking-wider">Destaque</span>
-            <h4 class="text-lg font-bold text-white mt-2 truncate">\${game.title}</h4>
-            <p class="text-slate-400 text-xs">Dev: \${game.developer}</p>
+            <span style="font-size: 0.7rem; background: var(--ps5-blue); color: #fff; padding: 2px 8px; border-radius: 4px; font-weight: bold; text-transform: uppercase;">Destaque</span>
+            <h4 style="font-size: 1.1rem; color: #fff; margin-top: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">\${game.title}</h4>
+            <p style="color: var(--text-muted); font-size: 0.8rem; margin-top: 2px;">Dev: \${game.developer}</p>
           </div>
-          <div class="flex justify-between items-center mt-3">
-            <span class="text-cyan-400 font-bold text-sm">SL$ \${game.price}</span>
-            <div class="flex gap-2">
-              <button onclick="buyAndInstall('\${game.uuid}')" class="bg-ps5Blue hover:bg-ps5BlueHover text-white px-3 py-1.5 rounded-lg text-xs font-bold transition shadow" title="Baixar/Instalar">
-                <i class="fa-solid fa-download"></i>
-              </button>
-              <button onclick="playGame('\${game.uuid}', '\${game.title}')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition shadow" title="Jogar Agora">
-                <i class="fa-solid fa-play"></i>
-              </button>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+            <span style="color: var(--accent); font-weight: bold; font-size: 0.95rem;">SL$ \${game.price}</span>
+            <div style="display: flex; gap: 6px;">
+              <button onclick="buyAndInstall('\${game.uuid}')" class="btn" style="padding: 6px 10px; font-size: 0.8rem;" title="Baixar/Instalar"><i class="fa-solid fa-download"></i></button>
+              <button onclick="playGame('\${game.uuid}', '\${game.title}')" class="btn btn-play" style="padding: 6px 10px; font-size: 0.8rem;" title="Jogar Agora"><i class="fa-solid fa-play"></i></button>
             </div>
           </div>
         \`;
@@ -278,27 +290,23 @@ const HOME_PAGE = `<!DOCTYPE html>
       const container = document.getElementById('games-list');
       container.innerHTML = '';
       if (games.length === 0) {
-        container.innerHTML = '<p class="text-slate-500 col-span-full text-center py-12"><i class="fa-solid fa-ghost text-4xl mb-3 block"></i> Nenhum jogo encontrado na Store.</p>';
+        container.innerHTML = '<p style="color: var(--text-muted); grid-column: 1/-1; text-align: center; padding: 40px;"><i class="fa-solid fa-ghost" style="font-size: 2rem; margin-bottom: 10px; display: block;"></i> Nenhum jogo encontrado na Store.</p>';
         return;
       }
       games.forEach(game => {
         const isOwner = currentUser && currentUser === game.developer;
         const card = document.createElement('div');
-        card.className = 'bg-slate-900/80 border border-white/5 rounded-2xl p-5 flex flex-col justify-between transition-all duration-300 hover:-translate-y-2 hover:border-ps5Blue hover:shadow-2xl hover:shadow-blue-500/20 hover:bg-slate-800/90';
+        card.className = 'game-card';
         card.innerHTML = \`
           <div>
-            <h3 class="text-lg font-bold text-white mb-1">\${game.title}</h3>
-            <p class="text-slate-400 text-xs mb-4"><i class="fa-solid fa-code-merge mr-1"></i> Dev: \${game.developer}</p>
-            <p class="text-cyan-400 font-bold text-base mb-4"><i class="fa-solid fa-coins mr-1"></i> SL$ \${game.price}</p>
+            <h3 style="font-size: 1.1rem; font-weight: bold; color: #fff; margin-bottom: 4px;">\${game.title}</h3>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 12px;"><i class="fa-solid fa-code-merge"></i> Dev: \${game.developer}</p>
+            <p style="color: var(--accent); font-weight: bold; font-size: 1rem; margin-bottom: 15px;"><i class="fa-solid fa-coins"></i> SL$ \${game.price}</p>
           </div>
-          <div class="flex flex-col gap-2">
-            <button onclick="buyAndInstall('\${game.uuid}')" class="bg-ps5Blue hover:bg-ps5BlueHover text-white text-sm font-semibold py-2.5 px-4 rounded-xl transition flex items-center justify-center gap-2">
-              <i class="fa-solid fa-download"></i> Baixar / Instalar
-            </button>
-            <button onclick="playGame('\${game.uuid}', '\${game.title}')" class="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold py-2.5 px-4 rounded-xl transition flex items-center justify-center gap-2">
-              <i class="fa-solid fa-play"></i> Play
-            </button>
-            \${isOwner ? \`<button onclick="deleteGame('\${game.uuid}')" class="bg-red-600/80 hover:bg-red-600 text-white text-xs font-semibold py-2 px-4 rounded-xl transition flex items-center justify-center gap-2 mt-1"><i class="fa-solid fa-trash"></i> Excluir Jogo</button>\` : ''}
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <button onclick="buyAndInstall('\${game.uuid}')" class="btn" style="font-size: 0.85rem; padding: 10px;"><i class="fa-solid fa-download"></i> Baixar / Instalar</button>
+            <button onclick="playGame('\${game.uuid}', '\${game.title}')" class="btn btn-play" style="font-size: 0.85rem; padding: 10px;"><i class="fa-solid fa-play"></i> Play</button>
+            \${isOwner ? \`<button onclick="deleteGame('\${game.uuid}')" class="btn btn-delete" style="width: 100%;"><i class="fa-solid fa-trash"></i> Excluir Jogo</button>\` : ''}
           </div>
         \`;
         container.appendChild(card);
@@ -308,7 +316,7 @@ const HOME_PAGE = `<!DOCTYPE html>
     async function buyAndInstall(uuid) {
       const user = document.getElementById('username').value.trim();
       if (!user) {
-        return Swal.fire({ icon: 'warning', title: 'Conta Necessária', text: 'Conecte sua PythonSL Account no topo para instalar jogos!', background: '#1e293b', color: '#fff' });
+        return Swal.fire({ icon: 'warning', title: 'Conta Necessária', text: 'Conecte sua PythonSL Account no topo para instalar jogos!', background: '#161b22', color: '#fff' });
       }
 
       const costRes = await fetch('/api/costmoney', {
@@ -318,14 +326,14 @@ const HOME_PAGE = `<!DOCTYPE html>
       });
       const costData = await costRes.json();
       if (!costRes.ok) {
-        return Swal.fire({ icon: 'error', title: 'Falha na Instalação', text: costData.error || 'Saldo insuficiente', background: '#1e293b', color: '#fff' });
+        return Swal.fire({ icon: 'error', title: 'Falha na Instalação', text: costData.error || 'Saldo insuficiente', background: '#161b22', color: '#fff' });
       }
 
       document.getElementById('balance-display').innerText = 'SL$ ' + costData.new_balance;
 
       const dlRes = await fetch('/download/' + uuid);
       if (!dlRes.ok) {
-        return Swal.fire({ icon: 'error', title: 'Erro', text: 'Erro ao baixar o jogo do servidor.', background: '#1e293b', color: '#fff' });
+        return Swal.fire({ icon: 'error', title: 'Erro', text: 'Erro ao baixar o jogo do servidor.', background: '#161b22', color: '#fff' });
       }
       const htmlContent = await dlRes.text();
 
@@ -334,7 +342,7 @@ const HOME_PAGE = `<!DOCTYPE html>
       store.put({ uuid, content: htmlContent, updatedAt: new Date().toISOString() });
 
       tx.oncomplete = () => {
-        Swal.fire({ icon: 'success', title: 'Instalado!', text: 'Jogo salvo com sucesso no IndexedDB!', background: '#1e293b', color: '#fff', timer: 2000, showConfirmButton: false });
+        Swal.fire({ icon: 'success', title: 'Instalado!', text: 'Jogo salvo com sucesso no IndexedDB!', background: '#161b22', color: '#fff', timer: 2000, showConfirmButton: false });
       };
     }
 
@@ -342,7 +350,7 @@ const HOME_PAGE = `<!DOCTYPE html>
       const user = document.getElementById('username').value.trim();
       const pass = document.getElementById('password').value;
       if (!user || !pass) {
-        return Swal.fire({ icon: 'warning', title: 'Autenticação', text: 'Digite seu usuário e senha!', background: '#1e293b', color: '#fff' });
+        return Swal.fire({ icon: 'warning', title: 'Autenticação', text: 'Digite seu usuário e senha!', background: '#161b22', color: '#fff' });
       }
 
       const confirmResult = await Swal.fire({
@@ -354,7 +362,7 @@ const HOME_PAGE = `<!DOCTYPE html>
         cancelButtonColor: '#334155',
         confirmButtonText: 'Sim, deletar',
         cancelButtonText: 'Cancelar',
-        background: '#1e293b',
+        background: '#161b22',
         color: '#fff'
       });
 
@@ -368,9 +376,9 @@ const HOME_PAGE = `<!DOCTYPE html>
       const data = await res.json();
       
       if (!res.ok) {
-        Swal.fire({ icon: 'error', title: 'Erro', text: data.error, background: '#1e293b', color: '#fff' });
+        Swal.fire({ icon: 'error', title: 'Erro', text: data.error, background: '#161b22', color: '#fff' });
       } else {
-        Swal.fire({ icon: 'success', title: 'Deletado', text: data.message, background: '#1e293b', color: '#fff', timer: 2000, showConfirmButton: false });
+        Swal.fire({ icon: 'success', title: 'Deletado', text: data.message, background: '#161b22', color: '#fff', timer: 2000, showConfirmButton: false });
         loadGames();
       }
     }
@@ -383,26 +391,21 @@ const HOME_PAGE = `<!DOCTYPE html>
       getReq.onsuccess = () => {
         const record = getReq.result;
         if (!record) {
-          return Swal.fire({ icon: 'info', title: 'Não instalado', text: 'Instale o jogo clicando em "Baixar / Instalar" primeiro!', background: '#1e293b', color: '#fff' });
+          return Swal.fire({ icon: 'info', title: 'Não instalado', text: 'Instale o jogo clicando em "Baixar / Instalar" primeiro!', background: '#161b22', color: '#fff' });
         }
 
         if (currentBlobUrl) URL.revokeObjectURL(currentBlobUrl);
         const blob = new Blob([record.content], { type: 'text/html;charset=utf-8' });
         currentBlobUrl = URL.createObjectURL(blob);
 
-        document.getElementById('playing-title').innerHTML = '<i class="fa-solid fa-play text-emerald-400"></i> Rodando: ' + title;
+        document.getElementById('playing-title').innerHTML = '<i class="fa-solid fa-play" style="color: #10b981;"></i> Rodando: ' + title;
         document.getElementById('game-frame').src = currentBlobUrl;
-        
-        const playerSec = document.getElementById('player-section');
-        playerSec.classList.remove('hidden');
-        playerSec.classList.add('flex');
+        document.getElementById('player-section').style.display = 'flex';
       };
     }
 
     function closePlayer() {
-      const playerSec = document.getElementById('player-section');
-      playerSec.classList.remove('flex');
-      playerSec.classList.add('hidden');
+      document.getElementById('player-section').style.display = 'none';
       document.getElementById('game-frame').src = 'about:blank';
       if (currentBlobUrl) { URL.revokeObjectURL(currentBlobUrl); currentBlobUrl = null; }
     }
@@ -419,62 +422,93 @@ const DEV_PAGE = `<!DOCTYPE html>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PythonSL GameShop - Painel Dev</title>
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
   <!-- Font Awesome CDN -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <!-- SweetAlert2 CDN -->
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-</head>
-<body class="bg-[#111418] text-slate-100 min-h-screen p-4 md:p-8 flex flex-col items-center justify-center">
+  <style>
+    :root {
+      --bg-color: #0d1117;
+      --card-bg: rgba(22, 27, 34, 0.9);
+      --ps5-blue: #0070d1;
+      --ps5-blue-hover: #005fb8;
+      --accent: #00f2fe;
+      --text-main: #f0f4f8;
+      --text-muted: #8b949e;
+      --border-color: rgba(255, 255, 255, 0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+    body { background-color: var(--bg-color); color: var(--text-main); min-height: 100vh; padding: 30px 20px; display: flex; align-items: center; justify-content: center; }
 
-  <div class="w-full max-w-2xl bg-slate-900/80 border border-white/10 rounded-3xl p-6 md:p-8 backdrop-blur-xl shadow-2xl space-y-6">
-    <header class="flex justify-between items-center border-b border-white/10 pb-4">
-      <h1 class="text-lg md:text-xl font-bold flex items-center gap-2"><i class="fa-solid fa-code text-cyan-400"></i> Painel de Publicação Dev</h1>
-      <a href="/" class="bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold px-4 py-2 rounded-xl transition flex items-center gap-1.5">
-        <i class="fa-solid fa-store"></i> Voltar à Store
-      </a>
+    .dev-card {
+      width: 100%; max-width: 600px; background: var(--card-bg); border: 1px solid var(--border-color);
+      border-radius: 20px; padding: 30px; backdrop-filter: blur(15px); box-shadow: 0 15px 35px rgba(0,0,0,0.5);
+    }
+    header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 15px; margin-bottom: 20px; }
+    header h1 { font-size: 1.2rem; color: var(--accent); }
+
+    .form-group { margin-bottom: 16px; }
+    label { display: block; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: bold; margin-bottom: 6px; letter-spacing: 0.5px; }
+    input, textarea {
+      width: 100%; padding: 12px 15px; background: rgba(10, 15, 22, 0.8);
+      border: 1px solid var(--border-color); color: #fff; border-radius: 10px; outline: none; transition: 0.2s; font-size: 0.95rem;
+    }
+    input:focus, textarea:focus { border-color: var(--ps5-blue); box-shadow: 0 0 8px rgba(0,112,209,0.4); }
+
+    .btn {
+      background: #059669; color: #fff; border: none; padding: 14px;
+      border-radius: 10px; font-weight: bold; cursor: pointer; width: 100%; transition: 0.2s; text-decoration: none; display: block; text-align: center; margin-top: 10px;
+    }
+    .btn:hover { background: #047857; }
+    .btn-back { background: #334155; padding: 8px 14px; font-size: 0.8rem; width: auto; display: inline-block; }
+    .btn-back:hover { background: #475569; }
+  </style>
+</head>
+<body>
+
+  <div class="dev-card">
+    <header>
+      <h1><i class="fa-solid fa-code"></i> Painel de Publicação Dev</h1>
+      <a href="/" class="btn btn-back"><i class="fa-solid fa-store"></i> Voltar à Store</a>
     </header>
 
-    <div class="space-y-4">
-      <p class="text-slate-400 text-sm">
-        Insira suas credenciais da <strong class="text-cyan-400">PythonSL Account</strong> para publicar seu jogo HTML5 na nuvem via <code class="bg-black/50 px-2 py-0.5 rounded text-cyan-300">/api/postgame</code>.
+    <div>
+      <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 20px;">
+        Insira suas credenciais da <strong style="color: var(--accent);">PythonSL Account</strong> para publicar seu jogo HTML5 na nuvem via <code style="background: rgba(0,0,0,0.5); padding: 2px 6px; border-radius: 4px; color: var(--accent);">/api/postgame</code>.
       </p>
 
-      <div>
-        <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Usuário PythonSL (Developer):</label>
-        <input type="text" id="dev-user" placeholder="Seu usuário" class="w-full bg-slate-950 border border-white/15 px-4 py-3 rounded-xl focus:outline-none focus:border-cyan-500">
+      <div class="form-group">
+        <label>Usuário PythonSL (Developer):</label>
+        <input type="text" id="dev-user" placeholder="Seu usuário">
       </div>
 
-      <div>
-        <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Senha da Conta (SHA256):</label>
-        <input type="password" id="dev-pass" placeholder="Sua senha" class="w-full bg-slate-950 border border-white/15 px-4 py-3 rounded-xl focus:outline-none focus:border-cyan-500">
+      <div class="form-group">
+        <label>Senha da Conta (SHA256):</label>
+        <input type="password" id="dev-pass" placeholder="Sua senha">
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Nome Oficial do Jogo:</label>
-          <input type="text" id="game-title" placeholder="Ex: Cyber PythonSL" class="w-full bg-slate-950 border border-white/15 px-4 py-3 rounded-xl focus:outline-none focus:border-cyan-500">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div class="form-group">
+          <label>Nome Oficial do Jogo:</label>
+          <input type="text" id="game-title" placeholder="Ex: Cyber PythonSL">
         </div>
-        <div>
-          <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Preço em SL$ (0 = Grátis):</label>
-          <input type="number" id="game-price" value="0" min="0" class="w-full bg-slate-950 border border-white/15 px-4 py-3 rounded-xl focus:outline-none focus:border-cyan-500">
+        <div class="form-group">
+          <label>Preço em SL$ (0 = Grátis):</label>
+          <input type="number" id="game-price" value="0" min="0">
         </div>
       </div>
 
-      <div>
-        <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Arquivo HTML (.html):</label>
-        <input type="file" id="game-file" accept=".html,.htm" class="w-full bg-slate-950 border border-white/15 p-2.5 rounded-xl text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-cyan-600 file:text-white hover:file:bg-cyan-500 cursor-pointer">
+      <div class="form-group">
+        <label>Arquivo HTML (.html):</label>
+        <input type="file" id="game-file" accept=".html,.htm" style="padding: 8px; cursor: pointer;">
       </div>
 
-      <div>
-        <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Ou Código HTML5 Bruto:</label>
-        <textarea id="game-code" rows="6" placeholder="<!DOCTYPE html>..." class="w-full bg-slate-950 border border-white/15 p-4 rounded-xl focus:outline-none font-mono text-sm focus:border-cyan-500"></textarea>
+      <div class="form-group">
+        <label>Ou Código HTML5 Bruto:</label>
+        <textarea id="game-code" rows="5" placeholder="<!DOCTYPE html>..."></textarea>
       </div>
 
-      <button onclick="publishGame()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3.5 px-6 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/30">
-        <i class="fa-solid fa-cloud-arrow-up"></i> Publicar Jogo na Nuvem
-      </button>
+      <button onclick="publishGame()" class="btn"><i class="fa-solid fa-cloud-arrow-up"></i> Publicar Jogo na Nuvem</button>
     </div>
   </div>
 
@@ -497,7 +531,7 @@ const DEV_PAGE = `<!DOCTYPE html>
       const html_content = document.getElementById('game-code').value;
 
       if (!developer || !pass || !title || !html_content) {
-        return Swal.fire({ icon: 'warning', title: 'Campos Incompletos', text: 'Preencha todas as informações e o código HTML!', background: '#1e293b', color: '#fff' });
+        return Swal.fire({ icon: 'warning', title: 'Campos Incompletos', text: 'Preencha todas as informações e o código HTML!', background: '#161b22', color: '#fff' });
       }
 
       Swal.fire({
@@ -505,7 +539,7 @@ const DEV_PAGE = `<!DOCTYPE html>
         text: 'Enviando jogo para a nuvem da PythonSL...',
         allowOutsideClick: false,
         didOpen: () => { Swal.showLoading(); },
-        background: '#1e293b', color: '#fff'
+        background: '#161b22', color: '#fff'
       });
 
       const res = await fetch('/api/postgame', {
@@ -516,13 +550,13 @@ const DEV_PAGE = `<!DOCTYPE html>
 
       const data = await res.json();
       if (!res.ok) {
-        Swal.fire({ icon: 'error', title: 'Erro ao Publicar', text: data.error || 'Falha desconhecida', background: '#1e293b', color: '#fff' });
+        Swal.fire({ icon: 'error', title: 'Erro ao Publicar', text: data.error || 'Falha desconhecida', background: '#161b22', color: '#fff' });
       } else {
         Swal.fire({
           icon: 'success',
           title: 'Publicado com Sucesso!',
           text: 'Seu jogo já está disponível na Store.',
-          background: '#1e293b',
+          background: '#161b22',
           color: '#fff'
         }).then(() => {
           window.location.href = '/';
